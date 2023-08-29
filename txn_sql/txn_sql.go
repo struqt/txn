@@ -23,27 +23,27 @@ func (d *SqlDoerBase) IsReadOnly() bool {
 
 type SqlTx = *sql.Tx
 
-type SqlWrapper struct {
+type SqlTxn struct {
 	Raw SqlTx
 }
 
-func (w *SqlWrapper) Commit(context.Context) error {
+func (w *SqlTxn) Commit(context.Context) error {
 	return w.Raw.Commit()
 }
 
-func (w *SqlWrapper) Rollback(context.Context) error {
+func (w *SqlTxn) Rollback(context.Context) error {
 	return w.Raw.Rollback()
 }
 
-func (w *SqlWrapper) IsNil() bool {
+func (w *SqlTxn) IsNil() bool {
 	return w.Raw == nil
 }
 
-func SqlBeginTxn(ctx context.Context, db SqlBeginner, opt SqlOptions) (*SqlWrapper, error) {
+func SqlBeginTxn(ctx context.Context, db SqlBeginner, opt SqlOptions) (*SqlTxn, error) {
 	if raw, err := db.BeginTx(ctx, opt); err != nil {
 		return nil, err
 	} else {
-		return &SqlWrapper{Raw: raw}, nil
+		return &SqlTxn{Raw: raw}, nil
 	}
 }
 

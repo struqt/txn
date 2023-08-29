@@ -25,27 +25,27 @@ func (d *PgxDoerBase) IsReadOnly() bool {
 
 type PgxTx = pgx.Tx
 
-type PgxWrapper struct {
+type PgxTxn struct {
 	Raw PgxTx
 }
 
-func (w *PgxWrapper) Commit(ctx context.Context) error {
+func (w *PgxTxn) Commit(ctx context.Context) error {
 	return w.Raw.Commit(ctx)
 }
 
-func (w *PgxWrapper) Rollback(ctx context.Context) error {
+func (w *PgxTxn) Rollback(ctx context.Context) error {
 	return w.Raw.Rollback(ctx)
 }
 
-func (w *PgxWrapper) IsNil() bool {
+func (w *PgxTxn) IsNil() bool {
 	return w.Raw == nil
 }
 
-func PgxBeginTxn(ctx context.Context, db PgxBeginner, opt PgxOptions) (*PgxWrapper, error) {
+func PgxBeginTxn(ctx context.Context, db PgxBeginner, opt PgxOptions) (*PgxTxn, error) {
 	if raw, err := db.BeginTx(ctx, *opt); err != nil {
 		return nil, err
 	} else {
-		return &PgxWrapper{Raw: raw}, nil
+		return &PgxTxn{Raw: raw}, nil
 	}
 }
 
