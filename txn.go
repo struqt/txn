@@ -10,6 +10,7 @@ import (
 type Txn interface {
 	Commit(context.Context) error
 	Rollback(context.Context) error
+	IsNil() bool
 }
 
 type Doer[TTxn Txn, TBeginner any] interface {
@@ -30,7 +31,7 @@ func ExecuteTxn[T Txn, B any, D Doer[T, B]](ctx context.Context, db B, doer D, f
 	case <-ctx.Done():
 		return fmt.Errorf("%w [txn context done]", ctx.Err())
 	default:
-		if doer.Timeout() > 1*time.Millisecond {
+		if doer.Timeout() > time.Millisecond {
 			var cancel context.CancelFunc
 			ctx, cancel = context.WithTimeout(ctx, doer.Timeout())
 			defer cancel()
@@ -45,6 +46,9 @@ func ExecuteTxn[T Txn, B any, D Doer[T, B]](ctx context.Context, db B, doer D, f
 					panic(p)
 				}
 				err = fmt.Errorf("%v --- debug.Stack --- %s", p, debug.Stack())
+				if tx.IsNil() {
+					return
+				}
 				if x := tx.Rollback(ctx); x != nil {
 					err = fmt.Errorf("%w [txn recover] %w [rollback]", err, x)
 				} else {
