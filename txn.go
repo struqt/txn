@@ -21,7 +21,7 @@ type Doer[TTxn Txn, TBeginner any] interface {
 	Timeout() time.Duration
 	SetTimeout(time.Duration)
 	IsReadOnly() bool
-	BeginTxn(ctx context.Context, db TBeginner) (TTxn, error)
+	BeginTxn(context.Context, TBeginner) (TTxn, error)
 }
 
 type DoFunc[T Txn, B any, D Doer[T, B]] func(ctx context.Context, do D) error
