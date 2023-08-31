@@ -15,12 +15,21 @@ type PgxBeginner = *pgxpool.Pool
 
 type PgxOptions = *pgx.TxOptions
 
-type PgxDoerBase struct {
+type PgxDoerBase[Stmt any] struct {
 	txn.DoerBase[PgxOptions]
+	stmt Stmt
 }
 
-func (d *PgxDoerBase) IsReadOnly() bool {
-	return strings.Compare(string(pgx.ReadOnly), string(d.Options().AccessMode)) == 0
+func (do *PgxDoerBase[any]) IsReadOnly() bool {
+	return strings.Compare(string(pgx.ReadOnly), string(do.Options().AccessMode)) == 0
+}
+
+func (do *PgxDoerBase[any]) Stmt() any {
+	return do.stmt
+}
+
+func (do *PgxDoerBase[any]) SetStmt(s any) {
+	do.stmt = s
 }
 
 type PgxTx = pgx.Tx
