@@ -13,12 +13,27 @@ type SqlBeginner = *sql.DB
 
 type SqlOptions = *sql.TxOptions
 
-type SqlDoerBase struct {
-	txn.DoerBase[SqlOptions]
+type SqlDoer[Stmt any] interface {
+	txn.Doer[txn.Txn, SqlBeginner]
+	Stmt() Stmt
+	SetStmt(Stmt)
 }
 
-func (d *SqlDoerBase) IsReadOnly() bool {
-	return d.Options().ReadOnly
+type SqlDoerBase[Stmt any] struct {
+	txn.DoerBase[SqlOptions]
+	stmt Stmt
+}
+
+func (do *SqlDoerBase[any]) IsReadOnly() bool {
+	return do.Options().ReadOnly
+}
+
+func (do *SqlDoerBase[any]) Stmt() any {
+	return do.stmt
+}
+
+func (do *SqlDoerBase[any]) SetStmt(s any) {
+	do.stmt = s
 }
 
 type SqlTx = *sql.Tx
