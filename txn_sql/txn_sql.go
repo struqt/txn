@@ -3,6 +3,8 @@ package txn_sql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/struqt/txn"
 )
@@ -17,6 +19,10 @@ type SqlDoer[Stmt any] interface {
 	txn.Doer[txn.Txn, SqlBeginner]
 	Stmt() Stmt
 	SetStmt(Stmt)
+	Options() SqlOptions
+	SetOptions(options SqlOptions)
+	ReadOnly(title string)
+	ReadWrite(title string)
 }
 
 type SqlDoerBase[Stmt any] struct {
@@ -34,6 +40,26 @@ func (do *SqlDoerBase[any]) Stmt() any {
 
 func (do *SqlDoerBase[any]) SetStmt(s any) {
 	do.stmt = s
+}
+
+func (do *SqlDoerBase[any]) ReadOnly(title string) {
+	do.SetRethrowPanic(false)
+	do.SetTimeout(150 * time.Millisecond)
+	do.SetOptions(&sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  true,
+	})
+	do.SetTitle(fmt.Sprintf("TxnRo.%s", title))
+}
+
+func (do *SqlDoerBase[any]) ReadWrite(title string) {
+	do.SetRethrowPanic(false)
+	do.SetTimeout(200 * time.Millisecond)
+	do.SetOptions(&sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+	})
+	do.SetTitle(fmt.Sprintf("TxnRw.%s", title))
 }
 
 type SqlTx = *sql.Tx

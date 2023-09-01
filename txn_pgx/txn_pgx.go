@@ -15,6 +15,14 @@ type PgxBeginner = *pgxpool.Pool
 
 type PgxOptions = *pgx.TxOptions
 
+type PgxDoer[Stmt any] interface {
+	txn.Doer[txn.Txn, PgxBeginner]
+	Options() PgxOptions
+	SetOptions(options PgxOptions)
+	Stmt() Stmt
+	SetStmt(Stmt)
+}
+
 type PgxDoerBase[Stmt any] struct {
 	txn.DoerBase[PgxOptions]
 	stmt Stmt
