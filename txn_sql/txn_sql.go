@@ -6,21 +6,23 @@ import (
 	"fmt"
 	"time"
 
+	//
+	//
 	"github.com/struqt/txn"
 )
 
 type Txn = txn.Txn
+type TxnDoer = txn.Doer[Txn, SqlBeginner]
 
 type SqlBeginner = *sql.DB
-
 type SqlOptions = *sql.TxOptions
 
 type SqlDoer[Stmt any] interface {
-	txn.Doer[txn.Txn, SqlBeginner]
-	Stmt() Stmt
-	SetStmt(Stmt)
+	TxnDoer
 	Options() SqlOptions
 	SetOptions(options SqlOptions)
+	Stmt() Stmt
+	SetStmt(Stmt)
 	ReadOnly(title string)
 	ReadWrite(title string)
 }
@@ -30,36 +32,48 @@ type SqlDoerBase[Stmt any] struct {
 	stmt Stmt
 }
 
-func (do *SqlDoerBase[any]) IsReadOnly() bool {
+func (do *SqlDoerBase[Stmt]) IsReadOnly() bool {
 	return do.Options().ReadOnly
 }
 
-func (do *SqlDoerBase[any]) Stmt() any {
+func (do *SqlDoerBase[Stmt]) Stmt() Stmt {
 	return do.stmt
 }
 
-func (do *SqlDoerBase[any]) SetStmt(s any) {
+func (do *SqlDoerBase[Stmt]) SetStmt(s Stmt) {
 	do.stmt = s
 }
 
-func (do *SqlDoerBase[any]) ReadOnly(title string) {
+func (do *SqlDoerBase[Stmt]) ReadOnly(title string) {
+	if title != "" {
+		do.SetTitle(fmt.Sprintf("TxnRo.%s", title))
+	}
 	do.SetRethrowPanic(false)
 	do.SetTimeout(150 * time.Millisecond)
 	do.SetOptions(&sql.TxOptions{
+		//
 		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  true,
+		//
+		ReadOnly: true,
 	})
-	do.SetTitle(fmt.Sprintf("TxnRo.%s", title))
 }
 
-func (do *SqlDoerBase[any]) ReadWrite(title string) {
+func (do *SqlDoerBase[Stmt]) ReadWrite(title string) {
+	if title != "" {
+		do.SetTitle(fmt.Sprintf("TxnRw.%s", title))
+	}
 	do.SetRethrowPanic(false)
 	do.SetTimeout(200 * time.Millisecond)
 	do.SetOptions(&sql.TxOptions{
+		//
 		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  false,
+		//
+		ReadOnly: false,
 	})
-	do.SetTitle(fmt.Sprintf("TxnRw.%s", title))
+}
+
+func (do *SqlDoerBase[Stmt]) BeginTxn(context.Context, SqlBeginner) (Txn, error) {
+	panic("implement me")
 }
 
 type SqlTx = *sql.Tx
@@ -88,7 +102,7 @@ func SqlBeginTxn(ctx context.Context, db SqlBeginner, opt SqlOptions) (*SqlTxn, 
 	}
 }
 
-func SqlExecute[D txn.Doer[Txn, SqlBeginner]](
+func SqlExecute[D TxnDoer](
 	ctx context.Context, db SqlBeginner, do D, fn txn.DoFunc[Txn, SqlBeginner, D]) (D, error) {
 	return do, txn.ExecuteTxn(ctx, db, do, fn)
 }
