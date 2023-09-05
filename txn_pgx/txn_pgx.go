@@ -11,42 +11,35 @@ import (
 	"github.com/struqt/txn"
 )
 
-type Txn = txn.Txn
-type TxnDoer = txn.Doer[Txn, PgxBeginner]
-
 type PgxBeginner = *pgxpool.Pool
 type PgxOptions = *pgx.TxOptions
 
 type PgxDoer[Stmt any] interface {
-	TxnDoer
-	Options() PgxOptions
-	SetOptions(options PgxOptions)
+	txn.Doer[PgxOptions, PgxBeginner]
 	Stmt() Stmt
 	SetStmt(Stmt)
-	ReadOnly(title string)
-	ReadWrite(title string)
 }
 
 type PgxDoerBase[Stmt any] struct {
-	txn.DoerBase[PgxOptions]
+	txn.DoerBase[PgxOptions, PgxBeginner]
 	stmt Stmt
 }
 
-func (do *PgxDoerBase[any]) IsReadOnly() bool {
-	return strings.Compare(string(pgx.ReadOnly), string(do.Options().AccessMode)) == 0
-}
-
-func (do *PgxDoerBase[Stmt]) Stmt() Stmt {
+func (do *PgxDoerBase[S]) Stmt() S {
 	return do.stmt
 }
 
-func (do *PgxDoerBase[Stmt]) SetStmt(s Stmt) {
+func (do *PgxDoerBase[S]) SetStmt(s S) {
 	do.stmt = s
 }
 
-func (do *PgxDoerBase[Stmt]) ReadOnly(title string) {
+func (do *PgxDoerBase[_]) IsReadOnly() bool {
+	return strings.Compare(string(pgx.ReadOnly), string(do.Options().AccessMode)) == 0
+}
+
+func (do *PgxDoerBase[_]) SetReadOnly(title string) {
 	if title != "" {
-		do.SetTitle(fmt.Sprintf("TxnRo.%s", title))
+		do.SetTitle(fmt.Sprintf("TxnRo`%s", title))
 	}
 	do.SetRethrowPanic(false)
 	do.SetTimeout(150 * time.Millisecond)
@@ -58,9 +51,9 @@ func (do *PgxDoerBase[Stmt]) ReadOnly(title string) {
 	})
 }
 
-func (do *PgxDoerBase[Stmt]) ReadWrite(title string) {
+func (do *PgxDoerBase[_]) SetReadWrite(title string) {
 	if title != "" {
-		do.SetTitle(fmt.Sprintf("TxnRw.%s", title))
+		do.SetTitle(fmt.Sprintf("TxnRw`%s", title))
 	}
 	do.SetRethrowPanic(false)
 	do.SetTimeout(200 * time.Millisecond)
@@ -72,14 +65,8 @@ func (do *PgxDoerBase[Stmt]) ReadWrite(title string) {
 	})
 }
 
-func (do *PgxDoerBase[Stmt]) BeginTxn(context.Context, PgxBeginner) (Txn, error) {
-	panic("implement me")
-}
-
-type PgxTx = pgx.Tx
-
 type PgxTxn struct {
-	Raw PgxTx
+	Raw pgx.Tx
 }
 
 func (w *PgxTxn) Commit(ctx context.Context) error {
@@ -94,15 +81,21 @@ func (w *PgxTxn) IsNil() bool {
 	return w.Raw == nil
 }
 
+func PgxExecute[D txn.Doer[PgxOptions, PgxBeginner]](
+	ctx context.Context, db PgxBeginner, do D, fn txn.DoFunc[PgxOptions, PgxBeginner, D]) (D, error) {
+	return do, txn.ExecuteTxn(ctx, db, do, fn)
+}
+
 func PgxBeginTxn(ctx context.Context, db PgxBeginner, opt PgxOptions) (*PgxTxn, error) {
-	if raw, err := db.BeginTx(ctx, *opt); err != nil {
+	var o pgx.TxOptions
+	if opt != nil {
+		o = *opt
+	} else {
+		o = pgx.TxOptions{}
+	}
+	if raw, err := db.BeginTx(ctx, o); err != nil {
 		return nil, err
 	} else {
 		return &PgxTxn{Raw: raw}, nil
 	}
-}
-
-func PgxExecute[D TxnDoer](
-	ctx context.Context, db PgxBeginner, do D, fn txn.DoFunc[Txn, PgxBeginner, D]) (D, error) {
-	return do, txn.ExecuteTxn(ctx, db, do, fn)
 }
