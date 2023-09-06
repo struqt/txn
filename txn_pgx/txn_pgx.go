@@ -11,32 +11,41 @@ import (
 	"github.com/struqt/txn"
 )
 
+// PgxBeginner is an alias for *pgxpool.Pool.
 type PgxBeginner = *pgxpool.Pool
+
+// PgxOptions is an alias for *pgx.TxOptions.
 type PgxOptions = *pgx.TxOptions
 
+// PgxDoer defines the interface for PGX transaction operations.
 type PgxDoer[Stmt any] interface {
 	txn.Doer[PgxOptions, PgxBeginner]
 	Stmt() Stmt
 	SetStmt(Stmt)
 }
 
+// PgxDoerBase provides a base implementation for the PgxDoer interface.
 type PgxDoerBase[Stmt any] struct {
 	txn.DoerBase[PgxOptions, PgxBeginner]
 	stmt Stmt
 }
 
+// Stmt returns the statement.
 func (do *PgxDoerBase[S]) Stmt() S {
 	return do.stmt
 }
 
+// SetStmt sets the statement.
 func (do *PgxDoerBase[S]) SetStmt(s S) {
 	do.stmt = s
 }
 
+// IsReadOnly checks if the transaction is read-only.
 func (do *PgxDoerBase[_]) IsReadOnly() bool {
 	return strings.Compare(string(pgx.ReadOnly), string(do.Options().AccessMode)) == 0
 }
 
+// SetReadOnly sets the transaction to read-only mode.
 func (do *PgxDoerBase[_]) SetReadOnly(title string) {
 	if title != "" {
 		do.SetTitle(fmt.Sprintf("TxnRo`%s", title))
@@ -53,6 +62,7 @@ func (do *PgxDoerBase[_]) SetReadOnly(title string) {
 	})
 }
 
+// SetReadWrite sets the transaction to read-write mode.
 func (do *PgxDoerBase[_]) SetReadWrite(title string) {
 	if title != "" {
 		do.SetTitle(fmt.Sprintf("TxnRw`%s", title))
@@ -69,27 +79,33 @@ func (do *PgxDoerBase[_]) SetReadWrite(title string) {
 	})
 }
 
+// PgxTxn wraps a raw pgx.Tx transaction.
 type PgxTxn struct {
 	Raw pgx.Tx
 }
 
+// Commit commits the transaction.
 func (w *PgxTxn) Commit(ctx context.Context) error {
 	return w.Raw.Commit(ctx)
 }
 
+// Rollback rolls back the transaction.
 func (w *PgxTxn) Rollback(ctx context.Context) error {
 	return w.Raw.Rollback(ctx)
 }
 
+// IsNil checks if the transaction is nil.
 func (w *PgxTxn) IsNil() bool {
 	return w.Raw == nil
 }
 
+// PgxExecute executes a pgx transaction.
 func PgxExecute[D txn.Doer[PgxOptions, PgxBeginner]](
 	ctx context.Context, db PgxBeginner, do D, fn txn.DoFunc[PgxOptions, PgxBeginner, D]) (D, error) {
 	return do, txn.Execute(ctx, db, do, fn)
 }
 
+// PgxPing performs a ping operation.
 func PgxPing[T any](
 	ctx context.Context, beginner PgxBeginner, doer PgxDoer[T], sleep func(time.Duration, int)) (int, error) {
 	return txn.Ping[PgxOptions, PgxBeginner](ctx, doer, sleep, func(ctx context.Context) error {
@@ -97,6 +113,7 @@ func PgxPing[T any](
 	})
 }
 
+// PgxBeginTxn begins a pgx transaction.
 func PgxBeginTxn(ctx context.Context, db PgxBeginner, opt PgxOptions) (*PgxTxn, error) {
 	var o pgx.TxOptions
 	if opt != nil {

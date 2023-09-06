@@ -7,8 +7,10 @@ import (
 	"time"
 )
 
+// DoFunc defines the function type for transaction execution.
 type DoFunc[O any, B any, D Doer[O, B]] func(ctx context.Context, do D) error
 
+// Execute executes a transaction with the given Doer and function.
 func Execute[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, fn DoFunc[O, B, D]) (err error) {
 	select {
 	case <-ctx.Done():
@@ -58,6 +60,7 @@ func Execute[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, fn D
 	}
 }
 
+// Ping performs a ping operation with the given Doer.
 func Ping[O any, B any](
 	ctx context.Context, doer Doer[O, B], sleep func(time.Duration, int), ping func(context.Context) error) (int, error) {
 	if ping == nil {
