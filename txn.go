@@ -5,30 +5,30 @@ import (
 	"time"
 )
 
-// Txn defines the basic transaction interface.
+// Txn defines the basic database transaction interface.
 type Txn interface {
 	Commit(context.Context) error   // Commit the transaction.
 	Rollback(context.Context) error // Rollback the transaction.
-	IsNil() bool                    // Check if the transaction is nil.
 }
 
-// Doer defines the interface for transaction operations.
+// Doer defines the interface for database transaction operations.
 type Doer[TOptions any, TBeginner any] interface {
-	RethrowPanic() bool                               // Get the rethrow panic flag.
-	SetRethrowPanic(bool)                             // Set the rethrow panic flag.
-	Title() string                                    // Get the title.
-	SetTitle(string)                                  // Set the title.
-	Timeout() time.Duration                           // Get the timeout duration.
-	SetTimeout(time.Duration)                         // Set the timeout duration.
-	MaxPing() int                                     // Get the maximum ping count.
-	SetMaxPing(int)                                   // Set the maximum ping count.
-	MaxRetry() int                                    // Get the maximum retry count.
-	SetMaxRetry(int)                                  // Set the maximum retry count.
-	Options() TOptions                                // Get the options.
-	SetOptions(options TOptions)                      // Set the options.
-	SetReadOnly(string)                               // Set read-only mode.
-	SetReadWrite(string)                              // Set read-write mode.
-	IsReadOnly() bool                                 // Check if read-only mode is enabled.
+	RethrowPanic() bool          // Get the rethrow panic flag.
+	SetRethrowPanic(bool)        // Set the rethrow panic flag.
+	Title() string               // Get the title.
+	SetTitle(string)             // Set the title.
+	Timeout() time.Duration      // Get the timeout duration.
+	SetTimeout(time.Duration)    // Set the timeout duration.
+	MaxPing() int                // Get the maximum ping count.
+	SetMaxPing(int)              // Set the maximum ping count.
+	MaxRetry() int               // Get the maximum retry count.
+	SetMaxRetry(int)             // Set the maximum retry count.
+	Options() TOptions           // Get the options.
+	SetOptions(options TOptions) // Set the options.
+	IsReadOnly() bool            // Check if read-only mode is enabled.
+	SetReadOnly(string)          // Set read-only mode.
+	SetReadWrite(string)         // Set read-write mode.
+
 	BeginTxn(context.Context, TBeginner) (Txn, error) // Begin a new transaction.
 }
 
@@ -73,7 +73,7 @@ func (do *DoerBase[_, _]) SetTimeout(t time.Duration) {
 }
 
 // MaxPing gets the maximum ping count.
-func (do *DoerBase[T, _]) MaxPing() int {
+func (do *DoerBase[_, _]) MaxPing() int {
 	return do.maxPing
 }
 
@@ -83,7 +83,7 @@ func (do *DoerBase[_, _]) SetMaxPing(v int) {
 }
 
 // MaxRetry gets the maximum retry count.
-func (do *DoerBase[T, _]) MaxRetry() int {
+func (do *DoerBase[_, _]) MaxRetry() int {
 	return do.maxRetry
 }
 

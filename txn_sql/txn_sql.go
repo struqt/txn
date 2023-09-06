@@ -42,6 +42,9 @@ func (do *SqlDoerBase[S]) SetStmt(s S) {
 
 // IsReadOnly checks if the transaction is read-only.
 func (do *SqlDoerBase[_]) IsReadOnly() bool {
+	if do.Options() == nil {
+		return false
+	}
 	return do.Options().ReadOnly
 }
 
@@ -86,17 +89,18 @@ type SqlTxn struct {
 
 // Commit commits the transaction.
 func (w *SqlTxn) Commit(context.Context) error {
+	if w.Raw == nil {
+		return fmt.Errorf("cancelling Commit, Raw is nil")
+	}
 	return w.Raw.Commit()
 }
 
 // Rollback rolls back the transaction.
 func (w *SqlTxn) Rollback(context.Context) error {
+	if w.Raw == nil {
+		return fmt.Errorf("cancelling Rollback, Raw is nil")
+	}
 	return w.Raw.Rollback()
-}
-
-// IsNil checks if the transaction is nil.
-func (w *SqlTxn) IsNil() bool {
-	return w.Raw == nil
 }
 
 // SqlExecute executes an SQL transaction.

@@ -42,6 +42,9 @@ func (do *PgxDoerBase[S]) SetStmt(s S) {
 
 // IsReadOnly checks if the transaction is read-only.
 func (do *PgxDoerBase[_]) IsReadOnly() bool {
+	if do.Options() == nil {
+		return false
+	}
 	return strings.Compare(string(pgx.ReadOnly), string(do.Options().AccessMode)) == 0
 }
 
@@ -86,17 +89,18 @@ type PgxTxn struct {
 
 // Commit commits the transaction.
 func (w *PgxTxn) Commit(ctx context.Context) error {
+	if w.Raw == nil {
+		return fmt.Errorf("cancelling Commit, Raw is nil")
+	}
 	return w.Raw.Commit(ctx)
 }
 
 // Rollback rolls back the transaction.
 func (w *PgxTxn) Rollback(ctx context.Context) error {
+	if w.Raw == nil {
+		return fmt.Errorf("cancelling Rollback, Raw is nil")
+	}
 	return w.Raw.Rollback(ctx)
-}
-
-// IsNil checks if the transaction is nil.
-func (w *PgxTxn) IsNil() bool {
-	return w.Raw == nil
 }
 
 // PgxExecute executes a pgx transaction.

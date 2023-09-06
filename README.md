@@ -1,5 +1,7 @@
 # txn
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/struqt/txn)](https://goreportcard.com/report/github.com/struqt/txn)
+
 ## Overview
 
 `txn` is a Go library focused on database transaction handling.
@@ -7,7 +9,7 @@
 ## Features
 
 - Acting as a library, not a framework
-- Robust transaction handling mechanisms
+- Robust database transaction handling mechanisms
 - Simple and easy-to-use API
 
 ## Installation

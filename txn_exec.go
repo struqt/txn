@@ -31,9 +31,6 @@ func Execute[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, fn D
 					panic(p)
 				}
 				err = fmt.Errorf("%v --- debug.Stack --- %s", p, debug.Stack())
-				if tx.IsNil() {
-					return
-				}
 				if x := tx.Rollback(ctx); x != nil {
 					err = fmt.Errorf("%w [txn recover] %w [rollback]", err, x)
 				} else {
