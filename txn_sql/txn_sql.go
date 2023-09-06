@@ -43,6 +43,8 @@ func (do *SqlDoerBase[_]) SetReadOnly(title string) {
 	}
 	do.SetRethrowPanic(false)
 	do.SetTimeout(150 * time.Millisecond)
+	do.SetMaxPing(2)
+	do.SetMaxRetry(1)
 	do.SetOptions(&sql.TxOptions{
 		//
 		Isolation: sql.LevelReadCommitted,
@@ -57,6 +59,8 @@ func (do *SqlDoerBase[_]) SetReadWrite(title string) {
 	}
 	do.SetRethrowPanic(false)
 	do.SetTimeout(200 * time.Millisecond)
+	do.SetMaxPing(8)
+	do.SetMaxRetry(2)
 	do.SetOptions(&sql.TxOptions{
 		//
 		Isolation: sql.LevelReadCommitted,
@@ -83,11 +87,24 @@ func (w *SqlTxn) IsNil() bool {
 
 func SqlExecute[D txn.Doer[SqlOptions, SqlBeginner]](
 	ctx context.Context, db SqlBeginner, do D, fn txn.DoFunc[SqlOptions, SqlBeginner, D]) (D, error) {
-	return do, txn.ExecuteTxn(ctx, db, do, fn)
+	return do, txn.Execute(ctx, db, do, fn)
+}
+
+func SqlPing[T any](
+	ctx context.Context, beginner SqlBeginner, doer SqlDoer[T], sleep func(time.Duration, int)) (int, error) {
+	return txn.Ping[SqlOptions, SqlBeginner](ctx, doer, sleep, func(ctx context.Context) error {
+		return beginner.PingContext(ctx)
+	})
 }
 
 func SqlBeginTxn(ctx context.Context, db SqlBeginner, opt SqlOptions) (*SqlTxn, error) {
-	if raw, err := db.BeginTx(ctx, opt); err != nil {
+	var o *sql.TxOptions
+	if opt != nil {
+		o = opt
+	} else {
+		o = &sql.TxOptions{}
+	}
+	if raw, err := db.BeginTx(ctx, o); err != nil {
 		return nil, err
 	} else {
 		return &SqlTxn{Raw: raw}, nil

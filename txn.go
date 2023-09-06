@@ -18,6 +18,10 @@ type Doer[TOptions any, TBeginner any] interface {
 	SetTitle(string)
 	Timeout() time.Duration
 	SetTimeout(time.Duration)
+	MaxPing() int
+	SetMaxPing(int)
+	MaxRetry() int
+	SetMaxRetry(int)
 	Options() TOptions
 	SetOptions(options TOptions)
 	SetReadOnly(string)
@@ -31,6 +35,9 @@ type DoerBase[TOptions any, TBeginner any] struct {
 	title   string
 	timeout time.Duration
 	options TOptions
+
+	maxPing  int
+	maxRetry int
 }
 
 func (do *DoerBase[_, _]) RethrowPanic() bool {
@@ -57,11 +64,27 @@ func (do *DoerBase[_, _]) SetTimeout(t time.Duration) {
 	do.timeout = t
 }
 
-func (do *DoerBase[O, _]) Options() O {
+func (do *DoerBase[T, _]) MaxPing() int {
+	return do.maxPing
+}
+
+func (do *DoerBase[_, _]) SetMaxPing(v int) {
+	do.maxPing = v
+}
+
+func (do *DoerBase[T, _]) MaxRetry() int {
+	return do.maxRetry
+}
+
+func (do *DoerBase[_, _]) SetMaxRetry(v int) {
+	do.maxRetry = v
+}
+
+func (do *DoerBase[T, _]) Options() T {
 	return do.options
 }
 
-func (do *DoerBase[O, _]) SetOptions(options O) {
+func (do *DoerBase[T, _]) SetOptions(options T) {
 	do.options = options
 }
 

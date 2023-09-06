@@ -43,6 +43,8 @@ func (do *PgxDoerBase[_]) SetReadOnly(title string) {
 	}
 	do.SetRethrowPanic(false)
 	do.SetTimeout(150 * time.Millisecond)
+	do.SetMaxPing(2)
+	do.SetMaxRetry(1)
 	do.SetOptions(&pgx.TxOptions{
 		IsoLevel:       pgx.ReadCommitted,
 		AccessMode:     pgx.ReadOnly,
@@ -57,6 +59,8 @@ func (do *PgxDoerBase[_]) SetReadWrite(title string) {
 	}
 	do.SetRethrowPanic(false)
 	do.SetTimeout(200 * time.Millisecond)
+	do.SetMaxPing(8)
+	do.SetMaxRetry(2)
 	do.SetOptions(&pgx.TxOptions{
 		IsoLevel:       pgx.ReadCommitted,
 		AccessMode:     pgx.ReadWrite,
@@ -83,7 +87,14 @@ func (w *PgxTxn) IsNil() bool {
 
 func PgxExecute[D txn.Doer[PgxOptions, PgxBeginner]](
 	ctx context.Context, db PgxBeginner, do D, fn txn.DoFunc[PgxOptions, PgxBeginner, D]) (D, error) {
-	return do, txn.ExecuteTxn(ctx, db, do, fn)
+	return do, txn.Execute(ctx, db, do, fn)
+}
+
+func PgxPing[T any](
+	ctx context.Context, beginner PgxBeginner, doer PgxDoer[T], sleep func(time.Duration, int)) (int, error) {
+	return txn.Ping[PgxOptions, PgxBeginner](ctx, doer, sleep, func(ctx context.Context) error {
+		return beginner.Ping(ctx)
+	})
 }
 
 func PgxBeginTxn(ctx context.Context, db PgxBeginner, opt PgxOptions) (*PgxTxn, error) {

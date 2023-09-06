@@ -9,7 +9,7 @@ import (
 
 type DoFunc[O any, B any, D Doer[O, B]] func(ctx context.Context, do D) error
 
-func ExecuteTxn[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, fn DoFunc[O, B, D]) (err error) {
+func Execute[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, fn DoFunc[O, B, D]) (err error) {
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("%w [txn context done]", ctx.Err())
@@ -55,5 +55,49 @@ func ExecuteTxn[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, f
 		} else {
 			return nil
 		}
+	}
+}
+
+func Ping[O any, B any](
+	ctx context.Context, doer Doer[O, B], sleep func(time.Duration, int), ping func(context.Context) error) (int, error) {
+	if ping == nil {
+		return 0, fmt.Errorf("ping func(..) is nil")
+	}
+	var (
+		ctx0   context.Context
+		cancel context.CancelFunc
+	)
+	defer func() {
+		if cancel != nil {
+			cancel()
+		}
+	}()
+	if doer.MaxPing() <= 0 {
+		return 0, nil
+	}
+	var retryIntervals = [4]time.Duration{
+		time.Second * 1,
+		time.Second * 4,
+		time.Second * 9,
+		time.Second * 16,
+	}
+	const retryIntervalsLen = len(retryIntervals)
+	cnt := 0
+	for {
+		ctx0, cancel = context.WithTimeout(ctx, time.Second)
+		err := ping(ctx0)
+		cancel()
+		i := retryIntervals[cnt%retryIntervalsLen]
+		cnt++
+		if err == nil {
+			return cnt, nil
+		}
+		if cnt > doer.MaxPing() {
+			return cnt, err
+		}
+		if sleep != nil {
+			sleep(i, cnt)
+		}
+		time.Sleep(i)
 	}
 }
