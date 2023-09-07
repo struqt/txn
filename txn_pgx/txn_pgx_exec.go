@@ -77,7 +77,7 @@ retry:
 		log.V(1).Info("+", "duration", time.Now().Sub(t1))
 		return doer, nil
 	}
-	pings, x = Ping(ctx, beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
+	pings, x = Ping(beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
 		log.Info("Ping", "retries", retries, "pings", cnt, "interval", i)
 	})
 	if x == nil && pings <= 1 {

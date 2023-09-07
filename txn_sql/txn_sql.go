@@ -110,9 +110,8 @@ func ExecuteOnce[D txn.Doer[Options, Beginner]](
 }
 
 // Ping performs a ping operation.
-func Ping(
-	ctx context.Context, beginner Beginner, limit int, count txn.PingCount) (int, error) {
-	return txn.Ping(ctx, limit, count, func(ctx context.Context) error {
+func Ping(beginner Beginner, limit int, count txn.PingCount) (int, error) {
+	return txn.Ping(limit, count, func(ctx context.Context) error {
 		return beginner.PingContext(ctx)
 	})
 }

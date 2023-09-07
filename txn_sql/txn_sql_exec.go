@@ -117,7 +117,7 @@ retry:
 	}
 	err = mod.Prepare(ctx, doer)
 	if err != nil {
-		pings, x = Ping(ctx, beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
+		pings, x = Ping(beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
 			log.Info("Ping", "retries", retries, "pings", cnt, "interval", i)
 		})
 		if x == nil && pings <= 1 {
@@ -140,7 +140,7 @@ retry:
 	} else {
 		err = fmt.Errorf("%w [exec]", err)
 	}
-	pings, x = Ping(ctx, beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
+	pings, x = Ping(beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
 		log.Info("Ping", "retries", retries, "pings", cnt, "interval", i)
 	})
 	if x == nil && pings <= 1 {
