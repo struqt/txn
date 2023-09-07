@@ -11,37 +11,37 @@ import (
 	"github.com/struqt/txn"
 )
 
-// SqlBeginner is an alias for *sql.DB.
-type SqlBeginner = *sql.DB
+// Beginner is an alias for *sql.DB.
+type Beginner = *sql.DB
 
-// SqlOptions is an alias for *sql.TxOptions.
-type SqlOptions = *sql.TxOptions
+// Options is an alias for *sql.TxOptions.
+type Options = *sql.TxOptions
 
-// SqlDoer defines the interface for SQL transaction operations.
-type SqlDoer[Stmt any] interface {
-	txn.Doer[SqlOptions, SqlBeginner]
+// Doer defines the interface for SQL transaction operations.
+type Doer[Stmt any] interface {
+	txn.Doer[Options, Beginner]
 	Stmt() Stmt
 	SetStmt(Stmt)
 }
 
-// SqlDoerBase provides a base implementation for the SqlDoer interface.
-type SqlDoerBase[Stmt any] struct {
-	txn.DoerBase[SqlOptions, SqlBeginner]
+// DoerBase provides a base implementation for the Doer interface.
+type DoerBase[Stmt any] struct {
+	txn.DoerBase[Options, Beginner]
 	stmt Stmt
 }
 
 // Stmt returns the statement.
-func (do *SqlDoerBase[S]) Stmt() S {
+func (do *DoerBase[S]) Stmt() S {
 	return do.stmt
 }
 
 // SetStmt sets the statement.
-func (do *SqlDoerBase[S]) SetStmt(s S) {
+func (do *DoerBase[S]) SetStmt(s S) {
 	do.stmt = s
 }
 
 // IsReadOnly checks if the transaction is read-only.
-func (do *SqlDoerBase[_]) IsReadOnly() bool {
+func (do *DoerBase[_]) IsReadOnly() bool {
 	if do.Options() == nil {
 		return false
 	}
@@ -49,7 +49,7 @@ func (do *SqlDoerBase[_]) IsReadOnly() bool {
 }
 
 // SetReadOnly sets the transaction to read-only mode.
-func (do *SqlDoerBase[_]) SetReadOnly(title string) {
+func (do *DoerBase[_]) SetReadOnly(title string) {
 	if title != "" {
 		do.SetTitle(fmt.Sprintf("TxnRo`%s", title))
 	}
@@ -66,7 +66,7 @@ func (do *SqlDoerBase[_]) SetReadOnly(title string) {
 }
 
 // SetReadWrite sets the transaction to read-write mode.
-func (do *SqlDoerBase[_]) SetReadWrite(title string) {
+func (do *DoerBase[_]) SetReadWrite(title string) {
 	if title != "" {
 		do.SetTitle(fmt.Sprintf("TxnRw`%s", title))
 	}
@@ -82,13 +82,13 @@ func (do *SqlDoerBase[_]) SetReadWrite(title string) {
 	})
 }
 
-// SqlTxn wraps a raw sql.Tx transaction.
-type SqlTxn struct {
+// Txn wraps a raw sql.Tx transaction.
+type Txn struct {
 	Raw *sql.Tx
 }
 
 // Commit commits the transaction.
-func (w *SqlTxn) Commit(context.Context) error {
+func (w *Txn) Commit(context.Context) error {
 	if w.Raw == nil {
 		return fmt.Errorf("cancelling Commit, Raw is nil")
 	}
@@ -96,29 +96,29 @@ func (w *SqlTxn) Commit(context.Context) error {
 }
 
 // Rollback rolls back the transaction.
-func (w *SqlTxn) Rollback(context.Context) error {
+func (w *Txn) Rollback(context.Context) error {
 	if w.Raw == nil {
 		return fmt.Errorf("cancelling Rollback, Raw is nil")
 	}
 	return w.Raw.Rollback()
 }
 
-// SqlExecute executes an SQL transaction.
-func SqlExecute[D txn.Doer[SqlOptions, SqlBeginner]](
-	ctx context.Context, db SqlBeginner, do D, fn txn.DoFunc[SqlOptions, SqlBeginner, D]) (D, error) {
+// ExecuteOnce executes an SQL transaction.
+func ExecuteOnce[D txn.Doer[Options, Beginner]](
+	ctx context.Context, db Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) (D, error) {
 	return do, txn.Execute(ctx, db, do, fn)
 }
 
-// SqlPing performs a ping operation.
-func SqlPing(
-	ctx context.Context, beginner SqlBeginner, limit int, count txn.PingCount) (int, error) {
+// Ping performs a ping operation.
+func Ping(
+	ctx context.Context, beginner Beginner, limit int, count txn.PingCount) (int, error) {
 	return txn.Ping(ctx, limit, count, func(ctx context.Context) error {
 		return beginner.PingContext(ctx)
 	})
 }
 
-// SqlBeginTxn begins an SQL transaction.
-func SqlBeginTxn(ctx context.Context, db SqlBeginner, opt SqlOptions) (*SqlTxn, error) {
+// BeginTxn begins an SQL transaction.
+func BeginTxn(ctx context.Context, db Beginner, opt Options) (*Txn, error) {
 	var o *sql.TxOptions
 	if opt != nil {
 		o = opt
@@ -128,6 +128,6 @@ func SqlBeginTxn(ctx context.Context, db SqlBeginner, opt SqlOptions) (*SqlTxn, 
 	if raw, err := db.BeginTx(ctx, o); err != nil {
 		return nil, err
 	} else {
-		return &SqlTxn{Raw: raw}, nil
+		return &Txn{Raw: raw}, nil
 	}
 }

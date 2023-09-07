@@ -11,37 +11,37 @@ import (
 	"github.com/struqt/txn"
 )
 
-// PgxBeginner is an alias for *pgxpool.Pool.
-type PgxBeginner = *pgxpool.Pool
+// Beginner is an alias for *pgxpool.Pool.
+type Beginner = *pgxpool.Pool
 
-// PgxOptions is an alias for *pgx.TxOptions.
-type PgxOptions = *pgx.TxOptions
+// Options is an alias for *pgx.TxOptions.
+type Options = *pgx.TxOptions
 
-// PgxDoer defines the interface for PGX transaction operations.
-type PgxDoer[Stmt any] interface {
-	txn.Doer[PgxOptions, PgxBeginner]
+// Doer defines the interface for PGX transaction operations.
+type Doer[Stmt any] interface {
+	txn.Doer[Options, Beginner]
 	Stmt() Stmt
 	SetStmt(Stmt)
 }
 
-// PgxDoerBase provides a base implementation for the PgxDoer interface.
-type PgxDoerBase[Stmt any] struct {
-	txn.DoerBase[PgxOptions, PgxBeginner]
+// DoerBase provides a base implementation for the Doer interface.
+type DoerBase[Stmt any] struct {
+	txn.DoerBase[Options, Beginner]
 	stmt Stmt
 }
 
 // Stmt returns the statement.
-func (do *PgxDoerBase[S]) Stmt() S {
+func (do *DoerBase[S]) Stmt() S {
 	return do.stmt
 }
 
 // SetStmt sets the statement.
-func (do *PgxDoerBase[S]) SetStmt(s S) {
+func (do *DoerBase[S]) SetStmt(s S) {
 	do.stmt = s
 }
 
 // IsReadOnly checks if the transaction is read-only.
-func (do *PgxDoerBase[_]) IsReadOnly() bool {
+func (do *DoerBase[_]) IsReadOnly() bool {
 	if do.Options() == nil {
 		return false
 	}
@@ -49,7 +49,7 @@ func (do *PgxDoerBase[_]) IsReadOnly() bool {
 }
 
 // SetReadOnly sets the transaction to read-only mode.
-func (do *PgxDoerBase[_]) SetReadOnly(title string) {
+func (do *DoerBase[_]) SetReadOnly(title string) {
 	if title != "" {
 		do.SetTitle(fmt.Sprintf("TxnRo`%s", title))
 	}
@@ -66,7 +66,7 @@ func (do *PgxDoerBase[_]) SetReadOnly(title string) {
 }
 
 // SetReadWrite sets the transaction to read-write mode.
-func (do *PgxDoerBase[_]) SetReadWrite(title string) {
+func (do *DoerBase[_]) SetReadWrite(title string) {
 	if title != "" {
 		do.SetTitle(fmt.Sprintf("TxnRw`%s", title))
 	}
@@ -82,13 +82,13 @@ func (do *PgxDoerBase[_]) SetReadWrite(title string) {
 	})
 }
 
-// PgxTxn wraps a raw pgx.Tx transaction.
-type PgxTxn struct {
+// Txn wraps a raw pgx.Tx transaction.
+type Txn struct {
 	Raw pgx.Tx
 }
 
 // Commit commits the transaction.
-func (w *PgxTxn) Commit(ctx context.Context) error {
+func (w *Txn) Commit(ctx context.Context) error {
 	if w.Raw == nil {
 		return fmt.Errorf("cancelling Commit, Raw is nil")
 	}
@@ -96,38 +96,38 @@ func (w *PgxTxn) Commit(ctx context.Context) error {
 }
 
 // Rollback rolls back the transaction.
-func (w *PgxTxn) Rollback(ctx context.Context) error {
+func (w *Txn) Rollback(ctx context.Context) error {
 	if w.Raw == nil {
 		return fmt.Errorf("cancelling Rollback, Raw is nil")
 	}
 	return w.Raw.Rollback(ctx)
 }
 
-// PgxExecute executes a pgx transaction.
-func PgxExecute[D txn.Doer[PgxOptions, PgxBeginner]](
-	ctx context.Context, db PgxBeginner, do D, fn txn.DoFunc[PgxOptions, PgxBeginner, D]) (D, error) {
-	return do, txn.Execute(ctx, db, do, fn)
+// ExecuteOnce executes a pgx transaction.
+func ExecuteOnce[D txn.Doer[Options, Beginner]](
+	ctx context.Context, beginner Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) (D, error) {
+	return do, txn.Execute(ctx, beginner, do, fn)
 }
 
-// PgxPing performs a ping operation.
-func PgxPing(
-	ctx context.Context, beginner PgxBeginner, limit int, count txn.PingCount) (int, error) {
+// Ping performs a ping operation.
+func Ping(
+	ctx context.Context, beginner Beginner, limit int, count txn.PingCount) (int, error) {
 	return txn.Ping(ctx, limit, count, func(ctx context.Context) error {
 		return beginner.Ping(ctx)
 	})
 }
 
-// PgxBeginTxn begins a pgx transaction.
-func PgxBeginTxn(ctx context.Context, db PgxBeginner, opt PgxOptions) (*PgxTxn, error) {
+// BeginTxn begins a pgx transaction.
+func BeginTxn(ctx context.Context, beginner Beginner, opt Options) (*Txn, error) {
 	var o pgx.TxOptions
 	if opt != nil {
 		o = *opt
 	} else {
 		o = pgx.TxOptions{}
 	}
-	if raw, err := db.BeginTx(ctx, o); err != nil {
+	if raw, err := beginner.BeginTx(ctx, o); err != nil {
 		return nil, err
 	} else {
-		return &PgxTxn{Raw: raw}, nil
+		return &Txn{Raw: raw}, nil
 	}
 }

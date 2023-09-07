@@ -9,25 +9,25 @@ import (
 	"github.com/struqt/txn"
 )
 
-type PgxStmt = any
+type StmtHolder = any
 
-type PgxModule[Stmt PgxStmt] interface {
-	Beginner() PgxBeginner
+type Module[Stmt StmtHolder] interface {
+	Beginner() Beginner
 }
 
-type PgxModuleBase[Stmt PgxStmt] struct {
-	beginner PgxBeginner
+type ModuleBase[Stmt StmtHolder] struct {
+	beginner Beginner
 }
 
-func (b *PgxModuleBase[_]) Init(beginner PgxBeginner) {
-	b.beginner = beginner
-}
-
-func (b *PgxModuleBase[_]) Beginner() PgxBeginner {
+func (b *ModuleBase[_]) Beginner() Beginner {
 	return b.beginner
 }
 
-func title[Stmt PgxStmt, Doer PgxDoer[Stmt]](do Doer) string {
+func (b *ModuleBase[_]) Init(beginner Beginner) {
+	b.beginner = beginner
+}
+
+func title[Stmt StmtHolder, D Doer[Stmt]](do D) string {
 	if do.Title() != "" {
 		return ""
 	}
@@ -38,28 +38,28 @@ func title[Stmt PgxStmt, Doer PgxDoer[Stmt]](do Doer) string {
 	return t.Name()
 }
 
-func PgxRwExecute[Stmt PgxStmt, Doer PgxDoer[Stmt]](
-	ctx context.Context, log logr.Logger, mod PgxModule[Stmt], doer Doer,
-	fn txn.DoFunc[PgxOptions, PgxBeginner, Doer],
-) (Doer, error) {
+func ExecuteRw[Stmt StmtHolder, D Doer[Stmt]](
+	ctx context.Context, log logr.Logger, mod Module[Stmt], doer D,
+	fn txn.DoFunc[Options, Beginner, D],
+) (D, error) {
 	doer.SetReadWrite(title[Stmt](doer))
-	return exec(ctx, log, mod, doer, fn)
+	return Execute(ctx, log, mod, doer, fn)
 }
 
-func PgxRoExecute[Stmt PgxStmt, Doer PgxDoer[Stmt]](
-	ctx context.Context, log logr.Logger, mod PgxModule[Stmt], doer Doer,
-	fn txn.DoFunc[PgxOptions, PgxBeginner, Doer],
-) (Doer, error) {
+func ExecuteRo[Stmt StmtHolder, D Doer[Stmt]](
+	ctx context.Context, log logr.Logger, mod Module[Stmt], doer D,
+	fn txn.DoFunc[Options, Beginner, D],
+) (D, error) {
 	doer.SetReadOnly(title[Stmt](doer))
-	return exec(ctx, log, mod, doer, fn)
+	return Execute(ctx, log, mod, doer, fn)
 }
 
-func exec[Stmt PgxStmt, Doer PgxDoer[Stmt]](
-	ctx context.Context, log0 logr.Logger, mod PgxModule[Stmt], doer Doer,
-	fn txn.DoFunc[PgxOptions, PgxBeginner, Doer],
-) (Doer, error) {
-	log := log0.WithName(doer.Title())
-	log.V(1).Info("  +")
+func Execute[Stmt StmtHolder, D Doer[Stmt]](
+	ctx context.Context, logger logr.Logger, mod Module[Stmt], doer D,
+	fn txn.DoFunc[Options, Beginner, D],
+) (D, error) {
+	log := logger.WithName(doer.Title())
+	log.V(1).Info("+")
 	var beginner = mod.Beginner()
 	var x, err error
 	var pings int
@@ -73,12 +73,12 @@ retry:
 		}
 		return doer, err
 	}
-	if doer, err = PgxExecute(ctx, beginner, doer, fn); err == nil {
-		log.V(1).Info("  +", "duration", time.Now().Sub(t1))
+	if doer, err = ExecuteOnce(ctx, beginner, doer, fn); err == nil {
+		log.V(1).Info("+", "duration", time.Now().Sub(t1))
 		return doer, nil
 	}
-	pings, x = PgxPing(ctx, beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
-		log.Info("PgxPing", "retries", retries, "pings", cnt, "interval", i)
+	pings, x = Ping(ctx, beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
+		log.Info("Ping", "retries", retries, "pings", cnt, "interval", i)
 	})
 	if x == nil && pings <= 1 {
 		log.Error(err, "", "retries", retries, "pings", pings)
