@@ -54,7 +54,7 @@ func (do *SqlDoerBase[_]) SetReadOnly(title string) {
 		do.SetTitle(fmt.Sprintf("TxnRo`%s", title))
 	}
 	do.SetRethrowPanic(false)
-	do.SetTimeout(150 * time.Millisecond)
+	do.SetTimeout(300 * time.Millisecond)
 	do.SetMaxPing(2)
 	do.SetMaxRetry(1)
 	do.SetOptions(&sql.TxOptions{
@@ -71,7 +71,7 @@ func (do *SqlDoerBase[_]) SetReadWrite(title string) {
 		do.SetTitle(fmt.Sprintf("TxnRw`%s", title))
 	}
 	do.SetRethrowPanic(false)
-	do.SetTimeout(200 * time.Millisecond)
+	do.SetTimeout(500 * time.Millisecond)
 	do.SetMaxPing(8)
 	do.SetMaxRetry(2)
 	do.SetOptions(&sql.TxOptions{
@@ -110,9 +110,9 @@ func SqlExecute[D txn.Doer[SqlOptions, SqlBeginner]](
 }
 
 // SqlPing performs a ping operation.
-func SqlPing[T any](
-	ctx context.Context, beginner SqlBeginner, doer SqlDoer[T], sleep func(time.Duration, int)) (int, error) {
-	return txn.Ping[SqlOptions, SqlBeginner](ctx, doer, sleep, func(ctx context.Context) error {
+func SqlPing(
+	ctx context.Context, beginner SqlBeginner, limit int, count txn.PingCount) (int, error) {
+	return txn.Ping(ctx, limit, count, func(ctx context.Context) error {
 		return beginner.PingContext(ctx)
 	})
 }

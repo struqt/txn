@@ -57,9 +57,10 @@ func Execute[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, fn D
 	}
 }
 
-// Ping performs a ping operation with the given Doer.
-func Ping[O any, B any](
-	ctx context.Context, doer Doer[O, B], sleep func(time.Duration, int), ping func(context.Context) error) (int, error) {
+type PingCount = func(cnt int, i time.Duration)
+
+// Ping performs a ping network operation
+func Ping(ctx context.Context, limit int, count PingCount, ping func(context.Context) error) (int, error) {
 	if ping == nil {
 		return 0, fmt.Errorf("ping func(..) is nil")
 	}
@@ -72,7 +73,7 @@ func Ping[O any, B any](
 			cancel()
 		}
 	}()
-	if doer.MaxPing() <= 0 {
+	if limit <= 0 {
 		return 0, nil
 	}
 	var retryIntervals = [4]time.Duration{
@@ -89,14 +90,14 @@ func Ping[O any, B any](
 		cancel()
 		i := retryIntervals[cnt%retryIntervalsLen]
 		cnt++
+		if count != nil {
+			count(cnt, i)
+		}
 		if err == nil {
 			return cnt, nil
 		}
-		if cnt > doer.MaxPing() {
+		if cnt > limit {
 			return cnt, err
-		}
-		if sleep != nil {
-			sleep(i, cnt)
 		}
 		time.Sleep(i)
 	}

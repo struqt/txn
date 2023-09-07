@@ -54,7 +54,7 @@ func (do *PgxDoerBase[_]) SetReadOnly(title string) {
 		do.SetTitle(fmt.Sprintf("TxnRo`%s", title))
 	}
 	do.SetRethrowPanic(false)
-	do.SetTimeout(150 * time.Millisecond)
+	do.SetTimeout(300 * time.Millisecond)
 	do.SetMaxPing(2)
 	do.SetMaxRetry(1)
 	do.SetOptions(&pgx.TxOptions{
@@ -71,7 +71,7 @@ func (do *PgxDoerBase[_]) SetReadWrite(title string) {
 		do.SetTitle(fmt.Sprintf("TxnRw`%s", title))
 	}
 	do.SetRethrowPanic(false)
-	do.SetTimeout(200 * time.Millisecond)
+	do.SetTimeout(500 * time.Millisecond)
 	do.SetMaxPing(8)
 	do.SetMaxRetry(2)
 	do.SetOptions(&pgx.TxOptions{
@@ -110,9 +110,9 @@ func PgxExecute[D txn.Doer[PgxOptions, PgxBeginner]](
 }
 
 // PgxPing performs a ping operation.
-func PgxPing[T any](
-	ctx context.Context, beginner PgxBeginner, doer PgxDoer[T], sleep func(time.Duration, int)) (int, error) {
-	return txn.Ping[PgxOptions, PgxBeginner](ctx, doer, sleep, func(ctx context.Context) error {
+func PgxPing(
+	ctx context.Context, beginner PgxBeginner, limit int, count txn.PingCount) (int, error) {
+	return txn.Ping(ctx, limit, count, func(ctx context.Context) error {
 		return beginner.Ping(ctx)
 	})
 }
