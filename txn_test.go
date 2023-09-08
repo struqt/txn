@@ -48,8 +48,9 @@ func TestPing(t *testing.T) {
 	// Test 4: Invalid parameters
 	t.Run("invalid parameters", func(t *testing.T) {
 		cnt, err := Ping(2, nil, nil)
-		if cnt != 3 || err == nil || err.Error() != "reached retry limit (2), last error: ping func is nil" {
-			t.Errorf("Expected cnt=1 and specific error, got cnt=%d and err=%v", cnt, err)
+		if cnt != 3 || err == nil ||
+			err.Error() != "reached retry limit (2), last error: nil argument\n[txn.Ping ping]" {
+			t.Errorf("Expected cnt=3 and specific error, got cnt=%d and err=%v", cnt, err)
 		}
 	})
 
