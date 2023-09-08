@@ -2,6 +2,7 @@ package txn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"runtime/debug"
@@ -48,7 +49,7 @@ func Ping(limit int, count PingCount, ping func(context.Context) error) (cnt int
 			ctx, cancel = context.WithTimeout(context.Background(), timeout)
 			err = ping(ctx)
 		} else {
-			err = fmt.Errorf("ping func is nil")
+			err = errors.Join(ErrNilArgument, errors.New("[txn.Ping ping]"))
 		}
 		cnt++
 		if cnt > limit {

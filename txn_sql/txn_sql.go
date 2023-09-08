@@ -48,38 +48,50 @@ func (do *DoerBase[_]) IsReadOnly() bool {
 	return do.Options().ReadOnly
 }
 
-// SetReadOnly sets the transaction to read-only mode.
-func (do *DoerBase[_]) SetReadOnly(title string) {
+// ResetAsReadOnly sets the transaction to read-only mode.
+func (do *DoerBase[_]) ResetAsReadOnly(title string) error {
 	if title != "" {
-		do.SetTitle(fmt.Sprintf("TxnRo`%s", title))
+		title = fmt.Sprintf("TxnRo`%s", title)
+	} else {
+		title = do.Title()
 	}
-	do.SetRethrowPanic(false)
-	do.SetTimeout(300 * time.Millisecond)
-	do.SetMaxPing(2)
-	do.SetMaxRetry(1)
-	do.SetOptions(&sql.TxOptions{
+	options := &sql.TxOptions{
 		//
 		Isolation: sql.LevelReadCommitted,
 		//
 		ReadOnly: true,
-	})
+	}
+	return do.Reset(txn.NewDoerFields(
+		txn.WithRethrow(false),
+		txn.WithTitle(title),
+		txn.WithMaxPing(2),
+		txn.WithMaxRetry(1),
+		txn.WithTimeout(300*time.Millisecond),
+		txn.WithOptions(options),
+	))
 }
 
-// SetReadWrite sets the transaction to read-write mode.
-func (do *DoerBase[_]) SetReadWrite(title string) {
+// ResetAsReadWrite sets the transaction to read-write mode.
+func (do *DoerBase[_]) ResetAsReadWrite(title string) error {
 	if title != "" {
-		do.SetTitle(fmt.Sprintf("TxnRw`%s", title))
+		title = fmt.Sprintf("TxnRw`%s", title)
+	} else {
+		title = do.Title()
 	}
-	do.SetRethrowPanic(false)
-	do.SetTimeout(500 * time.Millisecond)
-	do.SetMaxPing(8)
-	do.SetMaxRetry(2)
-	do.SetOptions(&sql.TxOptions{
+	options := &sql.TxOptions{
 		//
 		Isolation: sql.LevelReadCommitted,
 		//
 		ReadOnly: false,
-	})
+	}
+	return do.Reset(txn.NewDoerFields(
+		txn.WithRethrow(false),
+		txn.WithTitle(title),
+		txn.WithMaxPing(8),
+		txn.WithMaxRetry(2),
+		txn.WithTimeout(500*time.Millisecond),
+		txn.WithOptions(options),
+	))
 }
 
 // Txn wraps a raw sql.Tx transaction.
@@ -118,13 +130,13 @@ func Ping(beginner Beginner, limit int, count txn.PingCount) (int, error) {
 
 // BeginTxn begins an SQL transaction.
 func BeginTxn(ctx context.Context, db Beginner, opt Options) (*Txn, error) {
-	var o *sql.TxOptions
+	var clone sql.TxOptions
 	if opt != nil {
-		o = opt
+		clone = sql.TxOptions{Isolation: opt.Isolation, ReadOnly: opt.ReadOnly}
 	} else {
-		o = &sql.TxOptions{}
+		clone = sql.TxOptions{}
 	}
-	if raw, err := db.BeginTx(ctx, o); err != nil {
+	if raw, err := db.BeginTx(ctx, &clone); err != nil {
 		return nil, err
 	} else {
 		return &Txn{Raw: raw}, nil

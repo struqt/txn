@@ -2,6 +2,8 @@ package txn
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"time"
 )
 
@@ -13,111 +15,178 @@ type Txn interface {
 
 // Doer defines the interface for database transaction operations.
 type Doer[TOptions any, TBeginner any] interface {
-	RethrowPanic() bool          // Get the rethrow panic flag.
-	SetRethrowPanic(bool)        // Set the rethrow panic flag.
-	Title() string               // Get the title.
-	SetTitle(string)             // Set the title.
-	Timeout() time.Duration      // Get the timeout duration.
-	SetTimeout(time.Duration)    // Set the timeout duration.
-	MaxPing() int                // Get the maximum ping count.
-	SetMaxPing(int)              // Set the maximum ping count.
-	MaxRetry() int               // Get the maximum retry count.
-	SetMaxRetry(int)             // Set the maximum retry count.
-	Options() TOptions           // Get the options.
-	SetOptions(options TOptions) // Set the options.
-	IsReadOnly() bool            // Check if read-only mode is enabled.
-	SetReadOnly(string)          // Set read-only mode.
-	SetReadWrite(string)         // Set read-write mode.
+	MultiSet(setters ...DoerFieldSetter)
+	Reset(*DoerFields) error
+	ResetAsReadOnly(string) error
+	ResetAsReadWrite(string) error
+	BeginTxn(context.Context, TBeginner) (Txn, error)
+	Title() string
+	Rethrow() bool
+	Timeout() time.Duration
+	MaxPing() int
+	MaxRetry() int
+	Options() TOptions
+}
 
-	BeginTxn(context.Context, TBeginner) (Txn, error) // Begin a new transaction.
+// DoerFields provides data fields for DoerBase struct.
+type DoerFields struct {
+	title    string
+	rethrow  bool
+	timeout  time.Duration
+	maxPing  int
+	maxRetry int
+	options  any
 }
 
 // DoerBase provides a base implementation for the Doer interface.
 type DoerBase[TOptions any, TBeginner any] struct {
-	rethrow  bool
-	title    string
-	timeout  time.Duration
-	options  TOptions
-	maxPing  int
-	maxRetry int
+	mutex  sync.Mutex
+	fields DoerFields
 }
 
-// RethrowPanic gets the rethrow panic flag.
-func (do *DoerBase[_, _]) RethrowPanic() bool {
-	return do.rethrow
+// MultiSet applies field setters to modify DoerBase's fields.
+func (do *DoerBase[_, _]) MultiSet(setters ...DoerFieldSetter) {
+	do.mutex.Lock()
+	defer do.mutex.Unlock()
+	for _, setter := range setters {
+		setter(&do.fields)
+	}
 }
 
-// SetRethrowPanic sets the rethrow panic flag.
-func (do *DoerBase[_, _]) SetRethrowPanic(rethrow bool) {
-	do.rethrow = rethrow
+// Reset resets DoerBase's fields to the provided values.
+func (do *DoerBase[_, _]) Reset(fields *DoerFields) error {
+	if fields == nil {
+		return errors.Join(ErrNilArgument, errors.New("[txn.DoerBase.Reset fields]"))
+	}
+	if fields.options == nil {
+		return errors.Join(ErrNilArgument, errors.New("[txn.DoerBase.Reset fields.options]"))
+	}
+	do.mutex.Lock()
+	defer do.mutex.Unlock()
+	do.fields = *fields
+	return nil
 }
 
-// Title gets the title.
-func (do *DoerBase[_, _]) Title() string {
-	return do.title
+// ResetAsReadOnly sets read-only mode.
+func (do *DoerBase[_, _]) ResetAsReadOnly(string) error {
+	return errors.Join(ErrNotImplemented, errors.New("[txn.DoerBase.ResetAsReadOnly]"))
 }
 
-// SetTitle sets the title.
-func (do *DoerBase[_, _]) SetTitle(title string) {
-	do.title = title
-}
-
-// Timeout gets the timeout duration.
-func (do *DoerBase[_, _]) Timeout() time.Duration {
-	return do.timeout
-}
-
-// SetTimeout sets the timeout duration.
-func (do *DoerBase[_, _]) SetTimeout(t time.Duration) {
-	do.timeout = t
-}
-
-// MaxPing gets the maximum ping count.
-func (do *DoerBase[_, _]) MaxPing() int {
-	return do.maxPing
-}
-
-// SetMaxPing sets the maximum ping count.
-func (do *DoerBase[_, _]) SetMaxPing(v int) {
-	do.maxPing = v
-}
-
-// MaxRetry gets the maximum retry count.
-func (do *DoerBase[_, _]) MaxRetry() int {
-	return do.maxRetry
-}
-
-// SetMaxRetry sets the maximum retry count.
-func (do *DoerBase[_, _]) SetMaxRetry(v int) {
-	do.maxRetry = v
-}
-
-// Options gets the options.
-func (do *DoerBase[T, _]) Options() T {
-	return do.options
-}
-
-// SetOptions sets the options.
-func (do *DoerBase[T, _]) SetOptions(options T) {
-	do.options = options
-}
-
-// IsReadOnly checks if read-only mode is enabled.
-func (do *DoerBase[_, _]) IsReadOnly() bool {
-	panic("implement me")
-}
-
-// SetReadOnly sets read-only mode.
-func (do *DoerBase[_, _]) SetReadOnly(string) {
-	panic("implement me")
-}
-
-// SetReadWrite sets read-write mode.
-func (do *DoerBase[_, _]) SetReadWrite(string) {
-	panic("implement me")
+// ResetAsReadWrite sets read-write mode.
+func (do *DoerBase[_, _]) ResetAsReadWrite(string) error {
+	return errors.Join(ErrNotImplemented, errors.New("[txn.DoerBase.ResetAsReadWrite]"))
 }
 
 // BeginTxn begins a new transaction.
 func (do *DoerBase[_, B]) BeginTxn(context.Context, B) (Txn, error) {
-	panic("implement me")
+	return nil, errors.Join(ErrNotImplemented, errors.New("[txn.DoerBase.BeginTxn]"))
 }
+
+// Title gets the title.
+func (do *DoerBase[_, _]) Title() string {
+	return do.fields.title
+}
+
+// Rethrow gets the rethrow panic flag.
+func (do *DoerBase[_, _]) Rethrow() bool {
+	return do.fields.rethrow
+}
+
+// Timeout gets the timeout duration.
+func (do *DoerBase[_, _]) Timeout() time.Duration {
+	return do.fields.timeout
+}
+
+// MaxPing gets the maximum ping count.
+func (do *DoerBase[_, _]) MaxPing() int {
+	return do.fields.maxPing
+}
+
+// MaxRetry gets the maximum retry count.
+func (do *DoerBase[_, _]) MaxRetry() int {
+	return do.fields.maxRetry
+}
+
+// Options gets the options.
+func (do *DoerBase[T, _]) Options() T {
+	if t, ok := do.fields.options.(T); ok {
+		return t
+	} else {
+		var empty T
+		return empty
+	}
+}
+
+// DoerFieldSetter defines a function signature for setting DoerFields.
+type DoerFieldSetter func(*DoerFields)
+
+const (
+	DefaultTitle    = "Txn`Nameless"
+	DefaultTimeout  = 10 * time.Second
+	DefaultMaxPing  = 4
+	DefaultMaxRetry = 4
+)
+
+// NewDoerFields creates and initializes a new DoerFields instance with optional setters.
+func NewDoerFields(setters ...DoerFieldSetter) *DoerFields {
+	fields := &DoerFields{
+		title:    DefaultTitle,
+		rethrow:  false,
+		timeout:  DefaultTimeout,
+		maxPing:  DefaultMaxPing,
+		maxRetry: DefaultMaxRetry,
+	}
+	for _, setter := range setters {
+		if setter != nil {
+			setter(fields)
+		}
+	}
+	return fields
+}
+
+// WithTitle creates a field setter for the title.
+func WithTitle(value string) DoerFieldSetter {
+	return func(do *DoerFields) {
+		do.title = value
+	}
+}
+
+// WithRethrow creates a field setter for the rethrow flag.
+func WithRethrow(value bool) DoerFieldSetter {
+	return func(do *DoerFields) {
+		do.rethrow = value
+	}
+}
+
+// WithTimeout creates a field setter for the timeout duration.
+func WithTimeout(value time.Duration) DoerFieldSetter {
+	return func(do *DoerFields) {
+		do.timeout = value
+	}
+}
+
+// WithMaxPing creates a field setter for the maximum ping count.
+func WithMaxPing(value int) DoerFieldSetter {
+	return func(do *DoerFields) {
+		do.maxPing = value
+	}
+}
+
+// WithMaxRetry creates a field setter for the maximum retry count.
+func WithMaxRetry(value int) DoerFieldSetter {
+	return func(do *DoerFields) {
+		do.maxRetry = value
+	}
+}
+
+// WithOptions creates a field setter for options.
+func WithOptions(value any) DoerFieldSetter {
+	return func(do *DoerFields) {
+		do.options = value
+	}
+}
+
+var (
+	ErrNilArgument    = errors.New("nil argument")
+	ErrNotImplemented = errors.New("not implemented")
+)

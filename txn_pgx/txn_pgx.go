@@ -2,6 +2,7 @@ package txn_pgx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -48,38 +49,42 @@ func (do *DoerBase[_]) IsReadOnly() bool {
 	return strings.Compare(string(pgx.ReadOnly), string(do.Options().AccessMode)) == 0
 }
 
-// SetReadOnly sets the transaction to read-only mode.
-func (do *DoerBase[_]) SetReadOnly(title string) {
-	if title != "" {
-		do.SetTitle(fmt.Sprintf("TxnRo`%s", title))
-	}
-	do.SetRethrowPanic(false)
-	do.SetTimeout(300 * time.Millisecond)
-	do.SetMaxPing(2)
-	do.SetMaxRetry(1)
-	do.SetOptions(&pgx.TxOptions{
+// ResetAsReadOnly sets the transaction to read-only mode.
+func (do *DoerBase[_]) ResetAsReadOnly(title string) error {
+	options := &pgx.TxOptions{
 		IsoLevel:       pgx.ReadCommitted,
 		AccessMode:     pgx.ReadOnly,
 		DeferrableMode: pgx.NotDeferrable,
 		BeginQuery:     "",
-	})
+	}
+	fields := txn.NewDoerFields(
+		txn.WithTitle(fmt.Sprintf("TxnRo`%s", title)),
+		txn.WithRethrow(false),
+		txn.WithTimeout(2*time.Second),
+		txn.WithMaxPing(2),
+		txn.WithMaxRetry(1),
+		txn.WithOptions(options),
+	)
+	return do.Reset(fields)
 }
 
-// SetReadWrite sets the transaction to read-write mode.
-func (do *DoerBase[_]) SetReadWrite(title string) {
-	if title != "" {
-		do.SetTitle(fmt.Sprintf("TxnRw`%s", title))
-	}
-	do.SetRethrowPanic(false)
-	do.SetTimeout(500 * time.Millisecond)
-	do.SetMaxPing(8)
-	do.SetMaxRetry(2)
-	do.SetOptions(&pgx.TxOptions{
+// ResetAsReadWrite sets the transaction to read-write mode.
+func (do *DoerBase[_]) ResetAsReadWrite(title string) error {
+	options := &pgx.TxOptions{
 		IsoLevel:       pgx.ReadCommitted,
 		AccessMode:     pgx.ReadWrite,
 		DeferrableMode: pgx.NotDeferrable,
 		BeginQuery:     "",
-	})
+	}
+	fields := txn.NewDoerFields(
+		txn.WithTitle(fmt.Sprintf("TxnRw`%s", title)),
+		txn.WithRethrow(false),
+		txn.WithTimeout(5*time.Second),
+		txn.WithMaxPing(8),
+		txn.WithMaxRetry(2),
+		txn.WithOptions(options),
+	)
+	return do.Reset(fields)
 }
 
 // Txn wraps a raw pgx.Tx transaction.
@@ -90,7 +95,7 @@ type Txn struct {
 // Commit commits the transaction.
 func (w *Txn) Commit(ctx context.Context) error {
 	if w.Raw == nil {
-		return fmt.Errorf("cancelling Commit, Raw is nil")
+		return errors.New("cancelling Commit, Raw is nil")
 	}
 	return w.Raw.Commit(ctx)
 }
@@ -98,7 +103,7 @@ func (w *Txn) Commit(ctx context.Context) error {
 // Rollback rolls back the transaction.
 func (w *Txn) Rollback(ctx context.Context) error {
 	if w.Raw == nil {
-		return fmt.Errorf("cancelling Rollback, Raw is nil")
+		return errors.New("cancelling Rollback, Raw is nil")
 	}
 	return w.Raw.Rollback(ctx)
 }
@@ -118,13 +123,13 @@ func Ping(beginner Beginner, limit int, count txn.PingCount) (int, error) {
 
 // BeginTxn begins a pgx transaction.
 func BeginTxn(ctx context.Context, beginner Beginner, opt Options) (*Txn, error) {
-	var o pgx.TxOptions
+	var clone pgx.TxOptions
 	if opt != nil {
-		o = *opt
+		clone = *opt
 	} else {
-		o = pgx.TxOptions{}
+		clone = pgx.TxOptions{}
 	}
-	if raw, err := beginner.BeginTx(ctx, o); err != nil {
+	if raw, err := beginner.BeginTx(ctx, clone); err != nil {
 		return nil, err
 	} else {
 		return &Txn{Raw: raw}, nil

@@ -32,6 +32,8 @@ type ModuleBase[Stmt StmtHolder] struct {
 
 func (b *ModuleBase[Stmt]) Init(
 	beginner Beginner, maker func(context.Context, Beginner) (Stmt, error)) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.beginner = beginner
 	b.cacheMaker = maker
 }
@@ -82,27 +84,31 @@ func title[Stmt StmtHolder, D Doer[Stmt]](do D) string {
 
 func ExecuteRw[Stmt StmtHolder, D Doer[Stmt]](
 	ctx context.Context, log logr.Logger, module Module[Stmt], do D,
-	fn txn.DoFunc[Options, Beginner, D],
+	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
 ) (D, error) {
-	do.SetReadWrite(title[Stmt](do))
-	return Execute(ctx, log, module, do, fn)
+	if err := do.ResetAsReadWrite(title[Stmt](do)); err != nil {
+		return do, err
+	}
+	return Execute(ctx, log, module, do, fn, setters...)
 }
 
 func ExecuteRo[Stmt StmtHolder, D Doer[Stmt]](
 	ctx context.Context, log logr.Logger, module Module[Stmt], do D,
-	fn txn.DoFunc[Options, Beginner, D],
+	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
 ) (D, error) {
-	do.SetReadOnly(title[Stmt](do))
-	return Execute(ctx, log, module, do, fn)
+	if err := do.ResetAsReadOnly(title[Stmt](do)); err != nil {
+		return do, err
+	}
+	return Execute(ctx, log, module, do, fn, setters...)
 }
 
 func Execute[Stmt StmtHolder, D Doer[Stmt]](
 	ctx context.Context, log0 logr.Logger, mod Module[Stmt], doer D,
-	fn txn.DoFunc[Options, Beginner, D],
+	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
 ) (D, error) {
+	doer.MultiSet(setters...)
 	log := log0.WithName(doer.Title())
 	log.V(2).Info("~", "state", "Preparing")
-	var beginner = mod.Beginner()
 	var x, err error
 	var pings = 0
 	var retries = -1
@@ -117,10 +123,11 @@ retry:
 	}
 	err = mod.Prepare(ctx, doer)
 	if err != nil {
-		pings, x = Ping(beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
+		pings, x = Ping(mod.Beginner(), doer.MaxPing(), func(cnt int, i time.Duration) {
 			log.Info("Ping", "retries", retries, "pings", cnt, "interval", i)
 		})
-		if x == nil && pings <= 1 {
+		connected := x == nil && pings <= 1
+		if connected && retries > 0 {
 			log.Error(err, "", "retries", retries, "pings", pings)
 			return doer, err
 		}
@@ -130,7 +137,7 @@ retry:
 	t1 := time.Now()
 	log.V(2).Info("~", "state", "Prepared", "duration", t1.Sub(t0))
 	log.V(1).Info("+")
-	if _, err = ExecuteOnce(ctx, beginner, doer, fn); err == nil {
+	if _, err = ExecuteOnce(ctx, mod.Beginner(), doer, fn); err == nil {
 		log.V(1).Info("+", "duration", time.Now().Sub(t1))
 		return doer, nil
 	}
@@ -140,10 +147,11 @@ retry:
 	} else {
 		err = fmt.Errorf("%w [exec]", err)
 	}
-	pings, x = Ping(beginner, doer.MaxPing(), func(cnt int, i time.Duration) {
+	pings, x = Ping(mod.Beginner(), doer.MaxPing(), func(cnt int, i time.Duration) {
 		log.Info("Ping", "retries", retries, "pings", cnt, "interval", i)
 	})
-	if x == nil && pings <= 1 {
+	connected := x == nil && pings <= 1
+	if connected && retries > 0 {
 		log.Error(err, "", "retries", retries, "pings", pings)
 		return doer, err
 	}

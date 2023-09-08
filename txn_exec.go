@@ -27,7 +27,7 @@ func Execute[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, fn D
 		}
 		defer func() {
 			if p := recover(); p != nil {
-				if doer.RethrowPanic() {
+				if doer.Rethrow() {
 					panic(p)
 				}
 				err = fmt.Errorf("%v --- debug.Stack --- %s", p, debug.Stack())
