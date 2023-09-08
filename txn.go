@@ -15,10 +15,7 @@ type Txn interface {
 
 // Doer defines the interface for database transaction operations.
 type Doer[TOptions any, TBeginner any] interface {
-	MultiSet(setters ...DoerFieldSetter)
-	Reset(*DoerFields) error
-	ResetAsReadOnly(string) error
-	ResetAsReadWrite(string) error
+	Mutate(setters ...DoerFieldSetter)
 	BeginTxn(context.Context, TBeginner) (Txn, error)
 	Title() string
 	Rethrow() bool
@@ -26,6 +23,8 @@ type Doer[TOptions any, TBeginner any] interface {
 	MaxPing() int
 	MaxRetry() int
 	Options() TOptions
+	ReadOnlySetters(title string) []DoerFieldSetter
+	ReadWriteSetters(title string) []DoerFieldSetter
 }
 
 // DoerFields provides data fields for DoerBase struct.
@@ -44,37 +43,13 @@ type DoerBase[TOptions any, TBeginner any] struct {
 	fields DoerFields
 }
 
-// MultiSet applies field setters to modify DoerBase's fields.
-func (do *DoerBase[_, _]) MultiSet(setters ...DoerFieldSetter) {
+// Mutate applies field setters to modify DoerBase's fields.
+func (do *DoerBase[_, _]) Mutate(setters ...DoerFieldSetter) {
 	do.mutex.Lock()
 	defer do.mutex.Unlock()
 	for _, setter := range setters {
 		setter(&do.fields)
 	}
-}
-
-// Reset resets DoerBase's fields to the provided values.
-func (do *DoerBase[_, _]) Reset(fields *DoerFields) error {
-	if fields == nil {
-		return errors.Join(ErrNilArgument, errors.New("[txn.DoerBase.Reset fields]"))
-	}
-	if fields.options == nil {
-		return errors.Join(ErrNilArgument, errors.New("[txn.DoerBase.Reset fields.options]"))
-	}
-	do.mutex.Lock()
-	defer do.mutex.Unlock()
-	do.fields = *fields
-	return nil
-}
-
-// ResetAsReadOnly sets read-only mode.
-func (do *DoerBase[_, _]) ResetAsReadOnly(string) error {
-	return errors.Join(ErrNotImplemented, errors.New("[txn.DoerBase.ResetAsReadOnly]"))
-}
-
-// ResetAsReadWrite sets read-write mode.
-func (do *DoerBase[_, _]) ResetAsReadWrite(string) error {
-	return errors.Join(ErrNotImplemented, errors.New("[txn.DoerBase.ResetAsReadWrite]"))
 }
 
 // BeginTxn begins a new transaction.
@@ -117,32 +92,16 @@ func (do *DoerBase[T, _]) Options() T {
 	}
 }
 
+func (do *DoerBase[_, _]) ReadOnlySetters(string) []DoerFieldSetter {
+	return []DoerFieldSetter{}
+}
+
+func (do *DoerBase[_, _]) ReadWriteSetters(string) []DoerFieldSetter {
+	return []DoerFieldSetter{}
+}
+
 // DoerFieldSetter defines a function signature for setting DoerFields.
 type DoerFieldSetter func(*DoerFields)
-
-const (
-	DefaultTitle    = "Txn`Nameless"
-	DefaultTimeout  = 10 * time.Second
-	DefaultMaxPing  = 4
-	DefaultMaxRetry = 4
-)
-
-// NewDoerFields creates and initializes a new DoerFields instance with optional setters.
-func NewDoerFields(setters ...DoerFieldSetter) *DoerFields {
-	fields := &DoerFields{
-		title:    DefaultTitle,
-		rethrow:  false,
-		timeout:  DefaultTimeout,
-		maxPing:  DefaultMaxPing,
-		maxRetry: DefaultMaxRetry,
-	}
-	for _, setter := range setters {
-		if setter != nil {
-			setter(fields)
-		}
-	}
-	return fields
-}
 
 // WithTitle creates a field setter for the title.
 func WithTitle(value string) DoerFieldSetter {

@@ -40,58 +40,38 @@ func (do *DoerBase[S]) SetStmt(s S) {
 	do.stmt = s
 }
 
-// IsReadOnly checks if the transaction is read-only.
-func (do *DoerBase[_]) IsReadOnly() bool {
-	if do.Options() == nil {
-		return false
-	}
-	return do.Options().ReadOnly
-}
-
-// ResetAsReadOnly sets the transaction to read-only mode.
-func (do *DoerBase[_]) ResetAsReadOnly(title string) error {
-	if title != "" {
-		title = fmt.Sprintf("TxnRo`%s", title)
-	} else {
-		title = do.Title()
-	}
+func (do *DoerBase[_]) ReadOnlySetters(title string) []txn.DoerFieldSetter {
 	options := &sql.TxOptions{
 		//
 		Isolation: sql.LevelReadCommitted,
 		//
 		ReadOnly: true,
 	}
-	return do.Reset(txn.NewDoerFields(
+	return []txn.DoerFieldSetter{
+		txn.WithTitle(fmt.Sprintf("TxnRo`%s", title)),
 		txn.WithRethrow(false),
-		txn.WithTitle(title),
+		txn.WithTimeout(2 * time.Second),
 		txn.WithMaxPing(2),
 		txn.WithMaxRetry(1),
-		txn.WithTimeout(300*time.Millisecond),
 		txn.WithOptions(options),
-	))
+	}
 }
 
-// ResetAsReadWrite sets the transaction to read-write mode.
-func (do *DoerBase[_]) ResetAsReadWrite(title string) error {
-	if title != "" {
-		title = fmt.Sprintf("TxnRw`%s", title)
-	} else {
-		title = do.Title()
-	}
+func (do *DoerBase[_]) ReadWriteSetters(title string) []txn.DoerFieldSetter {
 	options := &sql.TxOptions{
 		//
 		Isolation: sql.LevelReadCommitted,
 		//
 		ReadOnly: false,
 	}
-	return do.Reset(txn.NewDoerFields(
+	return []txn.DoerFieldSetter{
+		txn.WithTitle(fmt.Sprintf("TxnRw`%s", title)),
 		txn.WithRethrow(false),
-		txn.WithTitle(title),
+		txn.WithTimeout(5 * time.Second),
 		txn.WithMaxPing(8),
 		txn.WithMaxRetry(2),
-		txn.WithTimeout(500*time.Millisecond),
 		txn.WithOptions(options),
-	))
+	}
 }
 
 // Txn wraps a raw sql.Tx transaction.

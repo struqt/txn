@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -41,50 +40,38 @@ func (do *DoerBase[S]) SetStmt(s S) {
 	do.stmt = s
 }
 
-// IsReadOnly checks if the transaction is read-only.
-func (do *DoerBase[_]) IsReadOnly() bool {
-	if do.Options() == nil {
-		return false
-	}
-	return strings.Compare(string(pgx.ReadOnly), string(do.Options().AccessMode)) == 0
-}
-
-// ResetAsReadOnly sets the transaction to read-only mode.
-func (do *DoerBase[_]) ResetAsReadOnly(title string) error {
+func (do *DoerBase[_]) ReadOnlySetters(title string) []txn.DoerFieldSetter {
 	options := &pgx.TxOptions{
 		IsoLevel:       pgx.ReadCommitted,
 		AccessMode:     pgx.ReadOnly,
 		DeferrableMode: pgx.NotDeferrable,
 		BeginQuery:     "",
 	}
-	fields := txn.NewDoerFields(
+	return []txn.DoerFieldSetter{
 		txn.WithTitle(fmt.Sprintf("TxnRo`%s", title)),
 		txn.WithRethrow(false),
-		txn.WithTimeout(2*time.Second),
+		txn.WithTimeout(2 * time.Second),
 		txn.WithMaxPing(2),
 		txn.WithMaxRetry(1),
 		txn.WithOptions(options),
-	)
-	return do.Reset(fields)
+	}
 }
 
-// ResetAsReadWrite sets the transaction to read-write mode.
-func (do *DoerBase[_]) ResetAsReadWrite(title string) error {
+func (do *DoerBase[_]) ReadWriteSetters(title string) []txn.DoerFieldSetter {
 	options := &pgx.TxOptions{
 		IsoLevel:       pgx.ReadCommitted,
 		AccessMode:     pgx.ReadWrite,
 		DeferrableMode: pgx.NotDeferrable,
 		BeginQuery:     "",
 	}
-	fields := txn.NewDoerFields(
+	return []txn.DoerFieldSetter{
 		txn.WithTitle(fmt.Sprintf("TxnRw`%s", title)),
 		txn.WithRethrow(false),
-		txn.WithTimeout(5*time.Second),
+		txn.WithTimeout(5 * time.Second),
 		txn.WithMaxPing(8),
 		txn.WithMaxRetry(2),
 		txn.WithOptions(options),
-	)
-	return do.Reset(fields)
+	}
 }
 
 // Txn wraps a raw pgx.Tx transaction.

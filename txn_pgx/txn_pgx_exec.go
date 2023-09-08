@@ -43,30 +43,30 @@ func title[Stmt StmtHolder, D Doer[Stmt]](do D) string {
 }
 
 func ExecuteRw[Stmt StmtHolder, D Doer[Stmt]](
-	ctx context.Context, log logr.Logger, mod Module[Stmt], do D,
+	ctx context.Context, mod Module[Stmt], do D,
 	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
 ) (D, error) {
-	if err := do.ResetAsReadWrite(title[Stmt](do)); err != nil {
-		return do, err
-	}
-	return Execute(ctx, log, mod, do, fn, setters...)
+	s := append(do.ReadWriteSetters(title[Stmt](do)), setters...)
+	return Execute(ctx, mod, do, fn, s...)
 }
 
 func ExecuteRo[Stmt StmtHolder, D Doer[Stmt]](
-	ctx context.Context, log logr.Logger, mod Module[Stmt], do D,
+	ctx context.Context, mod Module[Stmt], do D,
 	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
 ) (D, error) {
-	if err := do.ResetAsReadOnly(title[Stmt](do)); err != nil {
-		return do, err
-	}
-	return Execute(ctx, log, mod, do, fn, setters...)
+	s := append(do.ReadOnlySetters(title[Stmt](do)), setters...)
+	return Execute(ctx, mod, do, fn, s...)
 }
 
 func Execute[Stmt StmtHolder, D Doer[Stmt]](
-	ctx context.Context, logger logr.Logger, mod Module[Stmt], doer D,
+	ctx context.Context, mod Module[Stmt], doer D,
 	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
 ) (D, error) {
-	doer.MultiSet(setters...)
+	doer.Mutate(setters...)
+	var logger logr.Logger
+	if v, ok := ctx.Value("logger").(logr.Logger); ok {
+		logger = v
+	}
 	log := logger.WithName(doer.Title())
 	log.V(1).Info("+")
 	var x, err error
