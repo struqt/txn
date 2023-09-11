@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-	"time"
 )
 
 // DoFunc defines the function type for transaction execution.
@@ -16,11 +15,6 @@ func Execute[O any, B any, D Doer[O, B]](ctx context.Context, db B, doer D, fn D
 	case <-ctx.Done():
 		return fmt.Errorf("%w [txn context done]", ctx.Err())
 	default:
-		if doer.Timeout() > time.Millisecond {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, doer.Timeout())
-			defer cancel()
-		}
 		var tx Txn
 		if tx, err = doer.BeginTxn(ctx, db); err != nil {
 			return fmt.Errorf("%w [txn begin]", err)

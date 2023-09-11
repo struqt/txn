@@ -20,6 +20,8 @@ type Options = *pgx.TxOptions
 // Doer defines the interface for PGX transaction operations.
 type Doer[Stmt any] interface {
 	txn.Doer[Options, Beginner]
+	ReadOnlySetters(title string) []txn.DoerFieldSetter
+	ReadWriteSetters(title string) []txn.DoerFieldSetter
 	Stmt() Stmt
 	SetStmt(Stmt)
 }
@@ -98,6 +100,11 @@ func (w *Txn) Rollback(ctx context.Context) error {
 // ExecuteOnce executes a pgx transaction.
 func ExecuteOnce[D txn.Doer[Options, Beginner]](
 	ctx context.Context, beginner Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) (D, error) {
+	if do.Timeout() > time.Millisecond {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, do.Timeout())
+		defer cancel()
+	}
 	return do, txn.Execute(ctx, beginner, do, fn)
 }
 

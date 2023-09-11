@@ -23,8 +23,6 @@ type Doer[TOptions any, TBeginner any] interface {
 	MaxPing() int
 	MaxRetry() int
 	Options() TOptions
-	ReadOnlySetters(title string) []DoerFieldSetter
-	ReadWriteSetters(title string) []DoerFieldSetter
 }
 
 // DoerFields provides data fields for DoerBase struct.
@@ -90,14 +88,6 @@ func (do *DoerBase[T, _]) Options() T {
 		var empty T
 		return empty
 	}
-}
-
-func (do *DoerBase[_, _]) ReadOnlySetters(string) []DoerFieldSetter {
-	return []DoerFieldSetter{}
-}
-
-func (do *DoerBase[_, _]) ReadWriteSetters(string) []DoerFieldSetter {
-	return []DoerFieldSetter{}
 }
 
 // DoerFieldSetter defines a function signature for setting DoerFields.
