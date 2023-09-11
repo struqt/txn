@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/go-logr/logr v1.2.4
-	github.com/struqt/txn v0.0.8
+	github.com/struqt/txn v0.0.9
 	go.mongodb.org/mongo-driver v1.12.1
 )
 
