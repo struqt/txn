@@ -10,28 +10,44 @@ import (
 	"github.com/struqt/txn"
 )
 
-type StmtHolder = any
+type ModuleSetter func(*ModuleBase)
 
-type Module[Stmt StmtHolder] interface {
+type Module interface {
 	Beginner() Beginner
 }
 
-type ModuleBase[Stmt StmtHolder] struct {
+type ModuleBase struct {
 	mutex    sync.Mutex
 	beginner Beginner
 }
 
-func (b *ModuleBase[_]) Beginner() Beginner {
+func (b *ModuleBase) Beginner() Beginner {
 	return b.beginner
 }
 
-func (b *ModuleBase[_]) Init(beginner Beginner) {
+func (b *ModuleBase) Mutate(setters ...ModuleSetter) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
-	b.beginner = beginner
+	for _, setter := range setters {
+		setter(b)
+	}
 }
 
-func title[Stmt StmtHolder, D Doer[Stmt]](do D) string {
+func WithBeginner(value Beginner) ModuleSetter {
+	return func(do *ModuleBase) {
+		do.beginner = value
+	}
+}
+
+func Execute[T any, D Doer[T]](
+	ctx context.Context, mod Module, do D,
+	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
+) (D, error) {
+	s := append(do.DefaultSetters(title[T](do)), setters...)
+	return execute[T](ctx, mod, do, fn, s...)
+}
+
+func title[T any, D Doer[T]](do D) string {
 	if do.Title() != "" {
 		return ""
 	}
@@ -42,16 +58,8 @@ func title[Stmt StmtHolder, D Doer[Stmt]](do D) string {
 	return t.Name()
 }
 
-func Execute[Stmt StmtHolder, D Doer[Stmt]](
-	ctx context.Context, mod Module[Stmt], do D,
-	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
-) (D, error) {
-	s := append(do.DefaultSetters(title[Stmt](do)), setters...)
-	return execute(ctx, mod, do, fn, s...)
-}
-
-func execute[Stmt StmtHolder, D Doer[Stmt]](
-	ctx context.Context, mod Module[Stmt], doer D,
+func execute[T any, D Doer[T]](
+	ctx context.Context, mod Module, doer D,
 	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
 ) (D, error) {
 	doer.Mutate(setters...)
