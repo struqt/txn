@@ -11,11 +11,16 @@ import (
 	"github.com/struqt/txn"
 )
 
-// Beginner is an alias for *sql.DB.
-type Beginner = *sql.DB
+type (
+	RawTx    = *sql.Tx
+	Beginner = *sql.DB
+	Options  = *sql.TxOptions
+)
 
-// Options is an alias for *sql.TxOptions.
-type Options = *sql.TxOptions
+type RawTxn interface {
+	txn.Txn
+	Raw() RawTx
+}
 
 // Doer defines the interface for SQL transaction operations.
 type Doer[Stmt any] interface {
@@ -76,25 +81,28 @@ func (do *DoerBase[_]) ReadWriteSetters(title string) []txn.DoerFieldSetter {
 	}
 }
 
-// Txn wraps a raw sql.Tx transaction.
-type Txn struct {
-	Raw *sql.Tx
+type rawTx struct {
+	raw *sql.Tx
+}
+
+func (w *rawTx) Raw() RawTx {
+	return w.raw
 }
 
 // Commit commits the transaction.
-func (w *Txn) Commit(context.Context) error {
-	if w.Raw == nil {
+func (w *rawTx) Commit(context.Context) error {
+	if w.raw == nil {
 		return fmt.Errorf("cancelling Commit, Raw is nil")
 	}
-	return w.Raw.Commit()
+	return w.raw.Commit()
 }
 
 // Rollback rolls back the transaction.
-func (w *Txn) Rollback(context.Context) error {
-	if w.Raw == nil {
+func (w *rawTx) Rollback(context.Context) error {
+	if w.raw == nil {
 		return fmt.Errorf("cancelling Rollback, Raw is nil")
 	}
-	return w.Raw.Rollback()
+	return w.raw.Rollback()
 }
 
 // ExecuteOnce executes an SQL transaction.
@@ -116,7 +124,7 @@ func Ping(beginner Beginner, limit int, count txn.PingCount) (int, error) {
 }
 
 // BeginTxn begins an SQL transaction.
-func BeginTxn(ctx context.Context, db Beginner, opt Options) (*Txn, error) {
+func BeginTxn(ctx context.Context, db Beginner, opt Options) (RawTxn, error) {
 	var clone sql.TxOptions
 	if opt != nil {
 		clone = sql.TxOptions{Isolation: opt.Isolation, ReadOnly: opt.ReadOnly}
@@ -126,6 +134,6 @@ func BeginTxn(ctx context.Context, db Beginner, opt Options) (*Txn, error) {
 	if raw, err := db.BeginTx(ctx, &clone); err != nil {
 		return nil, err
 	} else {
-		return &Txn{Raw: raw}, nil
+		return &rawTx{raw: raw}, nil
 	}
 }

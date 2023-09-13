@@ -11,11 +11,16 @@ import (
 	"github.com/struqt/txn"
 )
 
-// Beginner is an alias for *pgxpool.Pool.
-type Beginner = *pgxpool.Pool
+type (
+	RawTx    = pgx.Tx
+	Beginner = *pgxpool.Pool
+	Options  = *pgx.TxOptions
+)
 
-// Options is an alias for *pgx.TxOptions.
-type Options = *pgx.TxOptions
+type RawTxn interface {
+	txn.Txn
+	Raw() RawTx
+}
 
 // Doer defines the interface for PGX transaction operations.
 type Doer[Stmt any] interface {
@@ -76,30 +81,36 @@ func (do *DoerBase[_]) ReadWriteSetters(title string) []txn.DoerFieldSetter {
 	}
 }
 
-// Txn wraps a raw pgx.Tx transaction.
-type Txn struct {
-	Raw pgx.Tx
+// rawTx wraps a raw pgx.Tx transaction.
+type rawTx struct {
+	raw RawTx
+}
+
+func (w *rawTx) Raw() RawTx {
+	return w.raw
 }
 
 // Commit commits the transaction.
-func (w *Txn) Commit(ctx context.Context) error {
-	if w.Raw == nil {
+func (w *rawTx) Commit(ctx context.Context) error {
+	if w.raw == nil {
 		return errors.New("cancelling Commit, Raw is nil")
 	}
-	return w.Raw.Commit(ctx)
+	return w.raw.Commit(ctx)
 }
 
 // Rollback rolls back the transaction.
-func (w *Txn) Rollback(ctx context.Context) error {
-	if w.Raw == nil {
+func (w *rawTx) Rollback(ctx context.Context) error {
+	if w.raw == nil {
 		return errors.New("cancelling Rollback, Raw is nil")
 	}
-	return w.Raw.Rollback(ctx)
+	return w.raw.Rollback(ctx)
 }
 
 // ExecuteOnce executes a pgx transaction.
-func ExecuteOnce[D txn.Doer[Options, Beginner]](
-	ctx context.Context, beginner Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) (D, error) {
+func ExecuteOnce[
+	D txn.Doer[Options, Beginner],
+	F txn.DoFunc[Options, Beginner, D],
+](ctx context.Context, beginner Beginner, do D, fn F) (D, error) {
 	if do.Timeout() > time.Millisecond {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, do.Timeout())
@@ -116,16 +127,16 @@ func Ping(beginner Beginner, limit int, count txn.PingCount) (int, error) {
 }
 
 // BeginTxn begins a pgx transaction.
-func BeginTxn(ctx context.Context, beginner Beginner, opt Options) (*Txn, error) {
+func BeginTxn(ctx context.Context, beginner Beginner, opt Options) (RawTxn, error) {
 	var clone pgx.TxOptions
 	if opt != nil {
 		clone = *opt
 	} else {
 		clone = pgx.TxOptions{}
 	}
-	if raw, err := beginner.BeginTx(ctx, clone); err != nil {
+	if tx, err := beginner.BeginTx(ctx, clone); err != nil {
 		return nil, err
 	} else {
-		return &Txn{Raw: raw}, nil
+		return &rawTx{raw: tx}, nil
 	}
 }

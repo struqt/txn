@@ -12,16 +12,21 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-type MgoOptions struct {
-	session     []*options.SessionOptions
-	transaction []*options.TransactionOptions
+type mongoOptions struct {
+	Session     []*options.SessionOptions
+	Transaction []*options.TransactionOptions
 }
 
-// Beginner is an alias for *pgxpool.Pool.
-type Beginner = *mongo.Client
+type (
+	RawTx    = mongo.Session
+	Beginner = *mongo.Client
+	Options  = *mongoOptions
+)
 
-// Options is an alias for *pgx.TxOptions.
-type Options = *MgoOptions
+type RawTxn interface {
+	txn.Txn
+	Raw() RawTx
+}
 
 // Doer defines the interface for PGX transaction operations.
 type Doer[T any] interface {
@@ -48,9 +53,9 @@ func (do *DoerBase[T]) SetClient(value T) {
 }
 
 func (do *DoerBase[_]) DefaultSetters(title string) []txn.DoerFieldSetter {
-	opts := &MgoOptions{
-		session:     []*options.SessionOptions{},
-		transaction: []*options.TransactionOptions{},
+	opts := &mongoOptions{
+		Session:     []*options.SessionOptions{},
+		Transaction: []*options.TransactionOptions{},
 	}
 	return []txn.DoerFieldSetter{
 		txn.WithTitle(fmt.Sprintf("Txn`%s", title)),
@@ -62,24 +67,27 @@ func (do *DoerBase[_]) DefaultSetters(title string) []txn.DoerFieldSetter {
 	}
 }
 
-// Txn wraps a raw pgx.Tx transaction.
-type Txn struct {
-	Raw mongo.Session
+type rawTx struct {
+	raw mongo.Session
 	opt []*options.TransactionOptions
 }
 
+func (w *rawTx) Raw() RawTx {
+	return w.raw
+}
+
 // Commit commits the transaction.
-func (w *Txn) Commit(ctx context.Context) error {
-	if w.Raw == nil {
+func (w *rawTx) Commit(ctx context.Context) error {
+	if w.raw == nil {
 		return errors.New("cancelling Commit, Raw is nil")
 	}
-	defer w.Raw.EndSession(context.Background())
-	return w.Raw.CommitTransaction(ctx)
+	defer w.raw.EndSession(context.Background())
+	return w.raw.CommitTransaction(ctx)
 }
 
 // Rollback rolls back the transaction.
-func (w *Txn) Rollback(ctx context.Context) error {
-	session := w.Raw
+func (w *rawTx) Rollback(ctx context.Context) error {
+	session := w.raw
 	if session == nil {
 		return errors.New("cancelling Rollback, Raw is nil")
 	}
@@ -96,7 +104,7 @@ func ExecuteOnce[D txn.Doer[Options, Beginner]](
 	if o == nil {
 		session, err = beginner.StartSession()
 	} else {
-		session, err = beginner.StartSession(o.session...)
+		session, err = beginner.StartSession(o.Session...)
 	}
 	if err != nil {
 		return do, err
@@ -119,7 +127,7 @@ func Ping(beginner Beginner, limit int, count txn.PingCount) (int, error) {
 }
 
 // BeginTxn begins a pgx transaction.
-func BeginTxn(ctx context.Context, _ Beginner, opt Options) (*Txn, error) {
+func BeginTxn(ctx context.Context, _ Beginner, opt Options) (RawTxn, error) {
 	session, ok := ctx.(mongo.SessionContext)
 	if !ok {
 		return nil, errors.New("no mongodb_session on current context")
@@ -128,10 +136,10 @@ func BeginTxn(ctx context.Context, _ Beginner, opt Options) (*Txn, error) {
 	if opt == nil {
 		err = session.StartTransaction()
 	} else {
-		err = session.StartTransaction(opt.transaction...)
+		err = session.StartTransaction(opt.Transaction...)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &Txn{Raw: session}, nil
+	return &rawTx{raw: session}, nil
 }
