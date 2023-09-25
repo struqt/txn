@@ -109,8 +109,7 @@ func (w *rawTx) Rollback(ctx context.Context) error {
 // ExecuteOnce executes a pgx transaction.
 func ExecuteOnce[
 	D txn.Doer[Options, Beginner],
-	F txn.DoFunc[Options, Beginner, D],
-](ctx context.Context, beginner Beginner, do D, fn F) (D, error) {
+](ctx context.Context, beginner Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) (D, error) {
 	if do.Timeout() > time.Millisecond {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, do.Timeout())
