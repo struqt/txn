@@ -6,13 +6,13 @@
 version: 2
 updates:
   - package-ecosystem: "gomod"
-    schedule: { interval: "weekly" }
+    schedule: { interval: "daily" }
     directory: "/"
 
   - package-ecosystem: "gomod"
-    schedule: { interval: "weekly" }
+    schedule: { interval: "daily" }
     directory: "/txn_pgx"
 
   - package-ecosystem: "gomod"
-    schedule: { interval: "weekly" }
+    schedule: { interval: "daily" }
     directory: "/txn_mongo"
