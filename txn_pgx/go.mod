@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/go-logr/logr v1.3.0
-	github.com/jackc/pgx/v5 v5.4.3
+	github.com/jackc/pgx/v5 v5.5.0
 	github.com/struqt/txn v0.0.11
 )
 
