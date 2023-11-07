@@ -2,11 +2,11 @@ package txn_mongo
 
 import (
 	"context"
+	"log/slog"
 	"reflect"
 	"sync"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/struqt/txn"
 )
 
@@ -63,12 +63,12 @@ func execute[T any, D Doer[T]](
 	fn txn.DoFunc[Options, Beginner, D], setters ...txn.DoerFieldSetter,
 ) (D, error) {
 	doer.Mutate(setters...)
-	var logger logr.Logger
-	if v, ok := ctx.Value("logger").(logr.Logger); ok {
+	var logger *slog.Logger
+	if v, ok := ctx.Value("logger").(*slog.Logger); ok {
 		logger = v
 	}
-	log := logger.WithName(doer.Title())
-	log.V(1).Info("+")
+	log := logger.With("T", doer.Title())
+	log.Info("+")
 	var x, err error
 	var pings int
 	var retries = -1
@@ -77,12 +77,12 @@ retry:
 	retries++
 	if retries > doer.MaxRetry() && doer.MaxRetry() > 0 {
 		if err != nil {
-			log.Error(err, "", "retries", retries, "pings", pings)
+			log.Error(err.Error(), "retries", retries, "pings", pings)
 		}
 		return doer, err
 	}
 	if doer, err = ExecuteOnce(ctx, mod.Beginner(), doer, fn); err == nil {
-		log.V(1).Info("+", "duration", time.Now().Sub(t1))
+		log.Info("+", "duration", time.Now().Sub(t1))
 		return doer, nil
 	}
 	pings, x = Ping(mod.Beginner(), doer.MaxPing(), func(cnt int, i time.Duration) {
@@ -91,7 +91,7 @@ retry:
 	connected := x == nil && pings <= 1
 	//if connected && retries > 0 {
 	if connected {
-		log.Error(err, "", "retries", retries, "pings", pings)
+		log.Error(err.Error(), "retries", retries, "pings", pings)
 		return doer, err
 	}
 	log.Info("", "retries", retries, "pings", pings, "err", err)
