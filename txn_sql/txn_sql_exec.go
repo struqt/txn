@@ -30,6 +30,15 @@ type ModuleBase[Stmt StmtHolder] struct {
 	cache      Stmt
 }
 
+func (b *ModuleBase[Stmt]) Stmt() Stmt {
+	if b.cache != nil {
+		return b.cache
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.cache
+}
+
 func (b *ModuleBase[Stmt]) Init(
 	beginner Beginner, maker func(context.Context, Beginner) (Stmt, error)) {
 	b.mu.Lock()
