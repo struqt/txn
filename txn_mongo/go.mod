@@ -3,7 +3,7 @@ module github.com/struqt/txn/txn_mongo
 go 1.21
 
 require (
-	github.com/struqt/txn v0.1.0
+	github.com/struqt/txn v0.1.2
 	go.mongodb.org/mongo-driver v1.13.0
 )
 
