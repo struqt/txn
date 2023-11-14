@@ -31,7 +31,8 @@ type ModuleBase[Stmt StmtHolder] struct {
 }
 
 func (b *ModuleBase[Stmt]) Stmt() Stmt {
-	if b.cache != nil {
+	var empty Stmt
+	if b.cache != empty {
 		return b.cache
 	}
 	b.mu.Lock()
