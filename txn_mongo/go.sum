@@ -11,8 +11,8 @@ github.com/klauspost/compress v1.17.2/go.mod h1:ntbaceVETuRiXiv4DpjP66DpAtAGkEQs
 github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe/go.mod h1:wL8QJuTMNUDYhXwkmfOly8iTdp5TEcJFWZD2D7SIkUc=
 github.com/montanaflynn/stats v0.7.1 h1:etflOAAHORrCC44V+aR6Ftzort912ZU+YLiSTuV8eaE=
 github.com/montanaflynn/stats v0.7.1/go.mod h1:etXPPgVO6n31NxCd9KQUMvCM+ve0ruNzt6R8Bnaayow=
-github.com/struqt/txn v0.1.0 h1:FjeSCsbKA+MTKhBeIS5h3WqT8vu514GPNKka5Hzyq/Q=
-github.com/struqt/txn v0.1.0/go.mod h1:hx/ztaBp7Yv2E71ptijHLdAOe2NT7LymZmyBfpV5qEA=
+github.com/struqt/txn v0.1.2 h1:wRbvcYWqCwCevUIgLXMLtW6SLekoAtqXgkZa6E7PXQk=
+github.com/struqt/txn v0.1.2/go.mod h1:hx/ztaBp7Yv2E71ptijHLdAOe2NT7LymZmyBfpV5qEA=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.2 h1:FHX5I5B4i4hKRVRBCFRxq1iQRej7WO3hhBuJf+UUySY=
