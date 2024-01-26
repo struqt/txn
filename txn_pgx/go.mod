@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/jackc/pgx/v5 v5.5.2
-	github.com/struqt/txn v0.1.2
+	github.com/struqt/txn v0.1.3
 )
 
 require (
