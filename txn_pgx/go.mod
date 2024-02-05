@@ -3,7 +3,7 @@ module github.com/struqt/txn/txn_pgx
 go 1.21
 
 require (
-	github.com/jackc/pgx/v5 v5.5.2
+	github.com/jackc/pgx/v5 v5.5.3
 	github.com/struqt/txn v0.1.3
 )
 
