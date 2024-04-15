@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/struqt/txn v0.1.3
-	go.mongodb.org/mongo-driver v1.14.0
+	go.mongodb.org/mongo-driver v1.15.0
 )
 
 require (
