@@ -66,6 +66,8 @@ func Execute[Stmt StmtHolder, D Doer[Stmt]](
 	var logger *slog.Logger
 	if v, ok := ctx.Value("logger").(*slog.Logger); ok {
 		logger = v
+	} else {
+		logger = slog.Default()
 	}
 	log := logger.With("T", doer.Title())
 	log.Info("+")
@@ -81,7 +83,7 @@ retry:
 		}
 		return doer, err
 	}
-	if doer, err = ExecuteOnce(ctx, mod.Beginner(), doer, fn); err == nil {
+	if err = ExecuteOnce(ctx, mod.Beginner(), doer, fn); err == nil {
 		log.Info("+", "duration", time.Now().Sub(t1))
 		return doer, nil
 	}

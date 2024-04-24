@@ -109,13 +109,13 @@ func (w *rawTx) Rollback(ctx context.Context) error {
 // ExecuteOnce executes a pgx transaction.
 func ExecuteOnce[
 	D txn.Doer[Options, Beginner],
-](ctx context.Context, beginner Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) (D, error) {
+](ctx context.Context, beginner Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) error {
 	if do.Timeout() > time.Millisecond {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, do.Timeout())
 		defer cancel()
 	}
-	return do, txn.Execute(ctx, beginner, do, fn)
+	return txn.Execute(ctx, beginner, do, fn)
 }
 
 // Ping performs a ping operation.
