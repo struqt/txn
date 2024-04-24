@@ -97,7 +97,7 @@ func (w *rawTx) Rollback(ctx context.Context) error {
 
 // ExecuteOnce executes a pgx transaction.
 func ExecuteOnce[D txn.Doer[Options, Beginner]](
-	ctx context.Context, beginner Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) (D, error) {
+	ctx context.Context, beginner Beginner, do D, fn txn.DoFunc[Options, Beginner, D]) error {
 	o := do.Options()
 	var err error
 	var session mongo.Session
@@ -107,7 +107,7 @@ func ExecuteOnce[D txn.Doer[Options, Beginner]](
 		session, err = beginner.StartSession(o.Session...)
 	}
 	if err != nil {
-		return do, err
+		return err
 	}
 	defer session.EndSession(context.Background())
 	if do.Timeout() > time.Millisecond {
@@ -116,7 +116,7 @@ func ExecuteOnce[D txn.Doer[Options, Beginner]](
 		defer cancel()
 	}
 	c1 := mongo.NewSessionContext(ctx, session)
-	return do, txn.Execute(c1, beginner, do, fn)
+	return txn.Execute(c1, beginner, do, fn)
 }
 
 // Ping performs a ping operation.
