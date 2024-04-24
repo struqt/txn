@@ -116,6 +116,8 @@ func Execute[Stmt StmtHolder, D Doer[Stmt]](
 	var logger *slog.Logger
 	if v, ok := ctx.Value("logger").(*slog.Logger); ok {
 		logger = v
+	} else {
+		logger = slog.Default()
 	}
 	log := logger.With("T", doer.Title())
 	log.Debug("~", "state", "Preparing")
