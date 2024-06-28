@@ -5,7 +5,7 @@ toolchain go1.22.4
 
 require (
 	github.com/struqt/txn v0.1.4
-	go.mongodb.org/mongo-driver v1.15.1
+	go.mongodb.org/mongo-driver v1.16.0
 )
 
 require (
