@@ -1,11 +1,11 @@
 module github.com/struqt/txn/txn_mongo
 
 go 1.21
-toolchain go1.22.4
+toolchain go1.22.5
 
 require (
 	github.com/struqt/txn v0.1.4
-	go.mongodb.org/mongo-driver v1.16.0
+	go.mongodb.org/mongo-driver v1.16.1
 )
 
 require (
